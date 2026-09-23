@@ -180,7 +180,6 @@ export default function MultiTenantAdminDashboard() {
     );
   }
 
-  // 🚫 SUBSCRIPTION BLOCK CHECK
   if (cafe.is_active === false) {
     return (
       <div className="min-h-screen bg-[#0A0D14] text-white flex flex-col items-center justify-center p-6 text-center">
@@ -334,10 +333,34 @@ export default function MultiTenantAdminDashboard() {
                     onChange={(e) => setDishPrice(e.target.value)}
                     className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
                   />
+                  <input
+                    type="text"
+                    placeholder="Description (Optional)"
+                    value={dishDesc}
+                    onChange={(e) => setDishDesc(e.target.value)}
+                    className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Image URL (Optional)"
+                    value={dishImg}
+                    onChange={(e) => setDishImg(e.target.value)}
+                    className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                  />
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="isVegCheck"
+                      checked={isVeg}
+                      onChange={(e) => setIsVeg(e.target.checked)}
+                      className="rounded accent-orange-500"
+                    />
+                    <label htmlFor="isVegCheck" className="text-xs text-gray-300">Is Vegetarian Dish?</label>
+                  </div>
                   <button
                     type="submit"
                     disabled={addingDish}
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition disabled:opacity-50"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition disabled:opacity-50 mt-2"
                   >
                     {addingDish ? 'Adding Dish...' : '+ Add Dish To Menu'}
                   </button>
@@ -349,22 +372,43 @@ export default function MultiTenantAdminDashboard() {
 
         {activeTab === 'kitchen' && (
           <div className="space-y-4">
-            <h2 className="text-lg font-bold text-white">Live Kitchen Orders</h2>
+            <h2 className="text-lg font-bold text-white">Live Kitchen Display System (KDS)</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {orders.filter(o => o.status !== 'completed').map((order) => (
-                <div key={order.id} className="bg-[#121824] border border-gray-800 rounded-2xl p-5">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-lg font-black text-orange-400">Table #{order.table_number}</span>
-                    <span className="text-xs text-gray-400">{order.customer_name}</span>
-                  </div>
-                  <button
-                    onClick={() => updateOrderStatus(order.id, 'completed')}
-                    className="w-full bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs"
-                  >
-                    ✅ Complete Order
-                  </button>
+              {orders.filter(o => o.status !== 'completed').length === 0 ? (
+                <div className="col-span-full bg-[#121824] border border-gray-800 rounded-2xl p-8 text-center text-gray-500">
+                  No active pending kitchen orders! ☕
                 </div>
-              ))}
+              ) : (
+                orders.filter(o => o.status !== 'completed').map((order) => (
+                  <div key={order.id} className="bg-[#121824] border border-gray-800 rounded-2xl p-5 flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-lg font-black text-orange-400">Table #{order.table_number}</span>
+                        <span className="text-xs text-gray-400">{order.customer_name}</span>
+                      </div>
+                      <div className="space-y-1 mb-4 border-t border-b border-gray-800 py-2">
+                        {order.order_items?.map((item) => (
+                          <div key={item.id} className="flex justify-between text-xs">
+                            <span className="text-gray-200">{item.menu_items?.name}</span>
+                            <span className="font-bold text-orange-400">x{item.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {order.notes && (
+                        <p className="text-[11px] text-amber-400/90 bg-amber-500/10 p-2 rounded-lg mb-4">
+                          Note: {order.notes}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => updateOrderStatus(order.id, 'completed')}
+                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition"
+                    >
+                      ✅ Complete Order
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
