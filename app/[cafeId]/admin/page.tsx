@@ -32,6 +32,7 @@ interface Cafe {
   id: string;
   name: string;
   slug: string;
+  is_active?: boolean;
 }
 
 export default function MultiTenantAdminDashboard() {
@@ -45,7 +46,7 @@ export default function MultiTenantAdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Dish addition form state
+  // Dish Form State
   const [dishName, setDishName] = useState('');
   const [dishPrice, setDishPrice] = useState('');
   const [dishDesc, setDishDesc] = useState('');
@@ -53,22 +54,24 @@ export default function MultiTenantAdminDashboard() {
   const [isVeg, setIsVeg] = useState(true);
   const [addingDish, setAddingDish] = useState(false);
 
-  // 1. Fetch Cafe Details & Orders
   const loadData = async () => {
     if (!cafeSlug) return;
     try {
-      // Cafe ID
-      const { data: cafeData } = await supabase
+      // 1. Fetch exact cafe via route slug
+      const { data: cafeData, error: cafeErr } = await supabase
         .from('cafes')
         .select('*')
         .eq('slug', cafeSlug)
         .maybeSingle();
 
-      if (!cafeData) return;
+      if (cafeErr || !cafeData) {
+        setLoading(false);
+        return;
+      }
       setCafe(cafeData);
 
-      // Orders for this cafe
-      const { data: ordersData, error } = await supabase
+      // 2. Fetch orders only for this specific cafe
+      const { data: ordersData, error: ordersErr } = await supabase
         .from('orders')
         .select(`
           id, table_number, customer_name, total_amount, status, created_at, notes,
@@ -80,7 +83,7 @@ export default function MultiTenantAdminDashboard() {
         .eq('cafe_id', cafeData.id)
         .order('created_at', { ascending: false });
 
-      if (error) console.error('Orders Fetch Error:', error);
+      if (ordersErr) console.error('Orders Error:', ordersErr);
       else setOrders((ordersData as any) || []);
 
     } catch (err) {
@@ -93,26 +96,42 @@ export default function MultiTenantAdminDashboard() {
   useEffect(() => {
     loadData();
 
-    // Realtime Subscriptions for Kitchen/Admin Updates
-    const channel = supabase
-      .channel('realtime_orders')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        loadData();
-      })
-      .subscribe();
+    let channel: any;
+    const setupRealtime = async () => {
+      const { data: cafeData } = await supabase
+        .from('cafes')
+        .select('id')
+        .eq('slug', cafeSlug)
+        .maybeSingle();
 
+      if (cafeData?.id) {
+        channel = supabase
+          .channel(`realtime_orders_${cafeData.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'orders',
+              filter: `cafe_id=eq.${cafeData.id}`
+            },
+            () => loadData()
+          )
+          .subscribe();
+      }
+    };
+
+    setupRealtime();
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [cafeSlug]);
 
-  // Update Order Status (KDS)
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
     loadData();
   };
 
-  // Add Dish Handler
   const handleAddDish = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cafe || !dishName || !dishPrice) return;
@@ -142,45 +161,6 @@ export default function MultiTenantAdminDashboard() {
     }
   };
 
-  // Filter Orders by Date
-  const filteredOrders = orders.filter((o) => {
-    const orderDate = new Date(o.created_at);
-    const now = new Date();
-
-    if (timeFilter === 'today') {
-      return orderDate.toDateString() === now.toDateString();
-    }
-    if (timeFilter === 'yesterday') {
-      const yest = new Date();
-      yest.setDate(now.getDate() - 1);
-      return orderDate.toDateString() === yest.toDateString();
-    }
-    if (timeFilter === '7days') {
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(now.getDate() - 7);
-      return orderDate >= sevenDaysAgo;
-    }
-    return true;
-  });
-
-  // Analytics Metrics
-  const grossRevenue = filteredOrders.reduce((sum, o) => sum + o.total_amount, 0);
-  const pendingOrders = orders.filter((o) => o.status === 'pending').length;
-
-  // Export CSV Audit Log
-  const exportCSV = () => {
-    let csvContent = "data:text/csv;charset=utf-8,Order ID,Time,Table,Customer,Amount,Status\n";
-    filteredOrders.forEach((o) => {
-      csvContent += `${o.id},${new Date(o.created_at).toLocaleTimeString()},#${o.table_number},${o.customer_name},₹${o.total_amount},${o.status}\n`;
-    });
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${cafe?.slug}_orders_audit.csv`);
-    document.body.appendChild(link);
-    link.click();
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A0D14] text-white flex items-center justify-center">
@@ -200,33 +180,60 @@ export default function MultiTenantAdminDashboard() {
     );
   }
 
+  // 🚫 SUBSCRIPTION BLOCK CHECK
+  if (cafe.is_active === false) {
+    return (
+      <div className="min-h-screen bg-[#0A0D14] text-white flex flex-col items-center justify-center p-6 text-center">
+        <h1 className="text-3xl font-extrabold text-red-500 mb-2">{cafe.name} - Subscription Expired 🚫</h1>
+        <p className="text-gray-400 text-sm max-w-md mb-6">
+          Is cafe ka QuickServe SaaS plan filhal paused ya expired hai. Continuous services ke liye kripya QuickServe Support se sampark karein.
+        </p>
+      </div>
+    );
+  }
+
+  const filteredOrders = orders.filter((o) => {
+    const orderDate = new Date(o.created_at);
+    const now = new Date();
+    if (timeFilter === 'today') return orderDate.toDateString() === now.toDateString();
+    if (timeFilter === 'yesterday') {
+      const yest = new Date();
+      yest.setDate(now.getDate() - 1);
+      return orderDate.toDateString() === yest.toDateString();
+    }
+    if (timeFilter === '7days') {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(now.getDate() - 7);
+      return orderDate >= sevenDaysAgo;
+    }
+    return true;
+  });
+
+  const grossRevenue = filteredOrders.reduce((sum, o) => sum + o.total_amount, 0);
+  const pendingOrders = orders.filter((o) => o.status === 'pending').length;
+
   return (
     <div className="min-h-screen bg-[#0A0D14] text-gray-100 font-sans pb-12">
-      {/* Top Header */}
       <header className="bg-[#121824] border-b border-gray-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
         <div>
+          {/* 🟢 DYNAMIC CAFE NAME */}
           <h1 className="text-xl font-extrabold text-orange-500">{cafe.name}</h1>
           <p className="text-xs text-gray-400">Master Owner Dashboard & Live KDS</p>
         </div>
 
-        {/* Navigation Tabs */}
         <div className="flex items-center gap-2 bg-[#161F2E] p-1.5 rounded-xl border border-gray-800">
           <button
             onClick={() => setActiveTab('admin')}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
-              activeTab === 'admin'
-                ? 'bg-orange-500 text-white shadow-lg'
-                : 'text-gray-400 hover:text-white'
+              activeTab === 'admin' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'
             }`}
           >
             📊 Owner Analytics
           </button>
           <button
             onClick={() => setActiveTab('kitchen')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 ${
-              activeTab === 'kitchen'
-                ? 'bg-orange-500 text-white shadow-lg'
-                : 'text-gray-400 hover:text-white'
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
+              activeTab === 'kitchen' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'
             }`}
           >
             🍳 Kitchen Display ({pendingOrders})
@@ -235,10 +242,8 @@ export default function MultiTenantAdminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 pt-6">
-        {/* VIEW 1: OWNER ANALYTICS DASHBOARD */}
         {activeTab === 'admin' && (
           <div className="space-y-6">
-            {/* Filter Timeframe Buttons */}
             <div className="flex justify-between items-center flex-wrap gap-4">
               <h2 className="text-lg font-bold text-white">Owner Dashboard & Metrics</h2>
               <div className="flex gap-2 bg-[#121824] p-1 rounded-xl border border-gray-800">
@@ -247,9 +252,7 @@ export default function MultiTenantAdminDashboard() {
                     key={t}
                     onClick={() => setTimeFilter(t)}
                     className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition ${
-                      timeFilter === t
-                        ? 'bg-orange-500 text-white'
-                        : 'text-gray-400 hover:text-white'
+                      timeFilter === t ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-white'
                     }`}
                   >
                     {t === '7days' ? 'Last 7 Days' : t}
@@ -258,37 +261,21 @@ export default function MultiTenantAdminDashboard() {
               </div>
             </div>
 
-            {/* Top Metric Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-[#121824] border border-gray-800/80 rounded-2xl p-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-[#121824] border border-gray-800 rounded-2xl p-5">
                 <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Gross Revenue</p>
                 <h3 className="text-3xl font-extrabold text-emerald-400">₹{grossRevenue}</h3>
                 <p className="text-xs text-gray-500 mt-2">{filteredOrders.length} orders in range</p>
               </div>
 
-              <div className="bg-[#121824] border border-gray-800/80 rounded-2xl p-5">
+              <div className="bg-[#121824] border border-gray-800 rounded-2xl p-5">
                 <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Pending Kitchen Orders</p>
                 <h3 className="text-3xl font-extrabold text-amber-400">{pendingOrders}</h3>
                 <p className="text-xs text-gray-500 mt-2">Active live requests</p>
               </div>
-
-              <div className="bg-[#121824] border border-gray-800/80 rounded-2xl p-5 flex flex-col justify-between">
-                <div>
-                  <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Quick Actions</p>
-                  <p className="text-xs text-gray-500">Export order records for accounting</p>
-                </div>
-                <button
-                  onClick={exportCSV}
-                  className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2 px-4 rounded-xl transition flex items-center justify-center gap-2"
-                >
-                  📥 Export Excel (CSV)
-                </button>
-              </div>
             </div>
 
-            {/* Audit Log Table & Add Dish Panel */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Audit Log Table */}
               <div className="lg:col-span-2 bg-[#121824] border border-gray-800 rounded-2xl p-5">
                 <h3 className="text-base font-bold text-white mb-4">Orders Audit Log ({filteredOrders.length})</h3>
                 <div className="overflow-x-auto">
@@ -305,7 +292,7 @@ export default function MultiTenantAdminDashboard() {
                     <tbody className="divide-y divide-gray-800/60">
                       {filteredOrders.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="p-4 text-center text-gray-500">No orders found in this timeframe.</td>
+                          <td colSpan={5} className="p-4 text-center text-gray-500">No orders found.</td>
                         </tr>
                       ) : (
                         filteredOrders.map((o) => (
@@ -316,9 +303,7 @@ export default function MultiTenantAdminDashboard() {
                             <td className="p-3 font-bold text-white">₹{o.total_amount}</td>
                             <td className="p-3">
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                o.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                                o.status === 'preparing' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                                'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                o.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                               }`}>
                                 {o.status}
                               </span>
@@ -331,7 +316,6 @@ export default function MultiTenantAdminDashboard() {
                 </div>
               </div>
 
-              {/* Add New Dish Panel */}
               <div className="bg-[#121824] border border-gray-800 rounded-2xl p-5">
                 <h3 className="text-base font-bold text-white mb-4">Add New Menu Dish</h3>
                 <form onSubmit={handleAddDish} className="space-y-3">
@@ -341,7 +325,7 @@ export default function MultiTenantAdminDashboard() {
                     required
                     value={dishName}
                     onChange={(e) => setDishName(e.target.value)}
-                    className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
+                    className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
                   />
                   <input
                     type="number"
@@ -349,48 +333,12 @@ export default function MultiTenantAdminDashboard() {
                     required
                     value={dishPrice}
                     onChange={(e) => setDishPrice(e.target.value)}
-                    className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
+                    className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
                   />
-                  <input
-                    type="text"
-                    placeholder="Image URL (Unsplash / Cloud)"
-                    value={dishImg}
-                    onChange={(e) => setDishImg(e.target.value)}
-                    className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
-                  />
-                  <textarea
-                    placeholder="Dish Description"
-                    rows={2}
-                    value={dishDesc}
-                    onChange={(e) => setDishDesc(e.target.value)}
-                    className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-orange-500"
-                  />
-                  <div className="flex items-center gap-3 text-xs">
-                    <label className="flex items-center gap-1.5 cursor-pointer text-gray-300">
-                      <input
-                        type="radio"
-                        name="vegType"
-                        checked={isVeg}
-                        onChange={() => setIsVeg(true)}
-                        className="accent-emerald-500"
-                      />
-                      Veg
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-gray-300">
-                      <input
-                        type="radio"
-                        name="vegType"
-                        checked={!isVeg}
-                        onChange={() => setIsVeg(false)}
-                        className="accent-rose-500"
-                      />
-                      Non-Veg
-                    </label>
-                  </div>
                   <button
                     type="submit"
                     disabled={addingDish}
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-lg disabled:opacity-50"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition disabled:opacity-50"
                   >
                     {addingDish ? 'Adding Dish...' : '+ Add Dish To Menu'}
                   </button>
@@ -400,69 +348,24 @@ export default function MultiTenantAdminDashboard() {
           </div>
         )}
 
-        {/* VIEW 2: KITCHEN DISPLAY SYSTEM (KDS) */}
         {activeTab === 'kitchen' && (
           <div className="space-y-4">
-            <h2 className="text-lg font-bold text-white">Live Kitchen Orders ({orders.filter(o => o.status !== 'completed').length})</h2>
-            
+            <h2 className="text-lg font-bold text-white">Live Kitchen Orders</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {orders.filter(o => o.status !== 'completed').length === 0 ? (
-                <div className="col-span-full text-center py-16 text-gray-500 text-sm">
-                  🎉 All orders are served! No pending items in kitchen.
-                </div>
-              ) : (
-                orders.filter(o => o.status !== 'completed').map((order) => (
-                  <div key={order.id} className="bg-[#121824] border border-gray-800 rounded-2xl p-5 flex flex-col justify-between shadow-xl">
-                    <div>
-                      <div className="flex justify-between items-center border-b border-gray-800 pb-3 mb-3">
-                        <div>
-                          <span className="text-lg font-black text-orange-400">Table #{order.table_number}</span>
-                          <p className="text-xs text-gray-400">{order.customer_name}</p>
-                        </div>
-                        <span className="text-xs font-mono text-gray-500">
-                          {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-
-                      {order.notes && (
-                        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs p-2 rounded-lg mb-3">
-                          ⚠️ Note: {order.notes}
-                        </div>
-                      )}
-
-                      <div className="space-y-2 mb-4">
-                        {order.order_items?.map((item) => (
-                          <div key={item.id} className="flex justify-between items-center text-xs">
-                            <span className="text-gray-200 font-medium">
-                              <strong className="text-orange-400 font-bold">{item.quantity}x</strong> {item.menu_items?.name || 'Item'}
-                            </span>
-                            <span className="text-gray-500">₹{item.price_per_unit * item.quantity}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* KDS Action Buttons */}
-                    <div className="pt-3 border-t border-gray-800 grid grid-cols-2 gap-2">
-                      {order.status === 'pending' ? (
-                        <button
-                          onClick={() => updateOrderStatus(order.id, 'preparing')}
-                          className="col-span-2 bg-amber-500 hover:bg-amber-600 text-black font-bold py-2 rounded-xl text-xs transition"
-                        >
-                          👨‍🍳 Start Preparing
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => updateOrderStatus(order.id, 'completed')}
-                          className="col-span-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs transition"
-                        >
-                          ✅ Mark Completed / Served
-                        </button>
-                      )}
-                    </div>
+              {orders.filter(o => o.status !== 'completed').map((order) => (
+                <div key={order.id} className="bg-[#121824] border border-gray-800 rounded-2xl p-5">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-lg font-black text-orange-400">Table #{order.table_number}</span>
+                    <span className="text-xs text-gray-400">{order.customer_name}</span>
                   </div>
-                ))
-              )}
+                  <button
+                    onClick={() => updateOrderStatus(order.id, 'completed')}
+                    className="w-full bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs"
+                  >
+                    ✅ Complete Order
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
