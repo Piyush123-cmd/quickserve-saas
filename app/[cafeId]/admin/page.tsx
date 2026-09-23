@@ -1,8 +1,3 @@
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-export const fetchCache = 'force-no-store';
-
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -221,7 +216,6 @@ export default function MultiTenantAdminDashboard() {
     <div className="min-h-screen bg-[#0A0D14] text-gray-100 font-sans pb-12">
       <header className="bg-[#121824] border-b border-gray-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
         <div>
-          {/* 🟢 DYNAMIC CAFE NAME */}
           <h1 className="text-xl font-extrabold text-orange-500">{cafe.name}</h1>
           <p className="text-xs text-gray-400">Master Owner Dashboard & Live KDS</p>
         </div>
