@@ -11,7 +11,8 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 interface OrderItem {
   id: string;
   quantity: number;
-  price_per_unit: number;
+  price?: number;
+  price_per_unit?: number;
   menu_items: {
     name: string;
   };
@@ -76,7 +77,7 @@ export default function MultiTenantAdminDashboard() {
         .select(`
           id, table_number, customer_name, total_amount, status, created_at, notes,
           order_items (
-            id, quantity, price_per_unit,
+            id, quantity, price,
             menu_items ( name )
           )
         `)
@@ -96,8 +97,11 @@ export default function MultiTenantAdminDashboard() {
   useEffect(() => {
     loadData();
 
-    let channel: any;
-    const setupRealtime = async () => {
+    if (!cafeSlug) return;
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const initRealtime = async () => {
       const { data: cafeData } = await supabase
         .from('cafes')
         .select('id')
@@ -105,8 +109,12 @@ export default function MultiTenantAdminDashboard() {
         .maybeSingle();
 
       if (cafeData?.id) {
-        channel = supabase
-          .channel(`realtime_orders_${cafeData.id}`)
+        // Unique channel name with timestamp to prevent re-use error in React Strict Mode
+        const channelName = `realtime_orders_${cafeData.id}_${Date.now()}`;
+        
+        channel = supabase.channel(channelName);
+
+        channel
           .on(
             'postgres_changes',
             {
@@ -115,15 +123,20 @@ export default function MultiTenantAdminDashboard() {
               table: 'orders',
               filter: `cafe_id=eq.${cafeData.id}`
             },
-            () => loadData()
+            () => {
+              loadData();
+            }
           )
           .subscribe();
       }
     };
 
-    setupRealtime();
+    initRealtime();
+
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [cafeSlug]);
 
