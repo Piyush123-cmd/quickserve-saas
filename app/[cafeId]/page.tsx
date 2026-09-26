@@ -4,7 +4,6 @@ import { useEffect, useState, Suspense, use, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
-  ShoppingCart, 
   Plus, 
   Minus, 
   CheckCircle, 
@@ -103,10 +102,8 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
-  const [upiRefNo, setUpiRefNo] = useState('');
   const [selectedPaymentMode, setSelectedPaymentMode] = useState<'cash' | 'upi'>('cash');
   const [submitting, setSubmitting] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState(false);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
 
   // Modals
@@ -148,6 +145,27 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
         if (saved) setCustomerOrderIds(JSON.parse(saved));
 
         fetchOrders(cafeData.id);
+
+        // Realtime Subscription for Kitchen Updates
+        const channel = supabase
+          .channel(`customer_orders_${cafeData.id}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'orders',
+              filter: `cafe_id=eq.${cafeData.id}`,
+            },
+            () => {
+              fetchOrders(cafeData.id);
+            }
+          )
+          .subscribe();
+
+        return () => {
+          supabase.removeChannel(channel);
+        };
       } catch (err) {
         console.error(err);
         setErrorMsg('Failed to load menu details.');
@@ -195,25 +213,15 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   };
 
   const totalAmount = cart.reduce((sum, i) => sum + i.item.price * i.quantity, 0);
-  const cafeUPI = cafe?.upi_id || 'demo@upi';
+  const cafeUPI = cafe?.upi_id || 'paytmqr2810050501011111@paytm';
   const upiPaymentUrl = `upi://pay?pa=${cafeUPI}&pn=${encodeURIComponent(cafe?.name || 'Cafe')}&am=${totalAmount}&cu=INR&tn=Table${tableNo}_Order`;
 
   const handlePlaceOrder = async () => {
     if (cart.length === 0 || submitting || !cafe) return;
-    
-    // Strict Payment Verification Guard
-    if (selectedPaymentMode === 'upi' && (!upiRefNo.trim() || upiRefNo.trim().length < 4)) {
-      alert('⚠️ Payment Verification Required:\nKripya UPI Transaction ka UTR / Ref No. ke last 4 digits enter karein!');
-      return;
-    }
 
     setSubmitting(true);
 
     try {
-      const finalNote = selectedPaymentMode === 'upi' 
-        ? `[UPI UTR Ref: ${upiRefNo.trim()}] ${specialInstructions.trim()}`.trim()
-        : specialInstructions.trim();
-
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -225,7 +233,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           payment_mode: selectedPaymentMode,
           payment_status: selectedPaymentMode === 'upi' ? 'paid' : 'pending',
           status: 'pending',
-          special_instructions: finalNote || null,
+          special_instructions: specialInstructions.trim() || null,
         })
         .select()
         .single();
@@ -249,10 +257,8 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
       setShowCheckoutModal(false);
-      setOrderSuccess(true);
       setCart([]);
       setSpecialInstructions('');
-      setUpiRefNo('');
       fetchOrders(cafe.id);
     } catch (err) {
       console.error(err);
@@ -288,7 +294,9 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   }, [menuItems, searchQuery, filterType]);
 
   const myOrders = orders.filter((o) => customerOrderIds.includes(o.id));
-  const activeMyOrder = myOrders.find((o) => o.status !== 'completed' && o.status !== 'cancelled');
+  
+  // Active Order: Shows tracker ONLY if order is in pending or preparing status
+  const activeMyOrder = myOrders.find((o) => o.status === 'pending' || o.status === 'preparing');
 
   const theme = {
     header: isDarkMode 
@@ -368,28 +376,28 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
       </header>
 
       <main className="max-w-md mx-auto p-4 space-y-4">
-        {/* LIVE ORDER TRACKER BANNER */}
+        {/* LIVE ORDER TRACKER BANNER (REALTIME) */}
         {activeMyOrder && (
           <div
             onClick={() => setShowMyOrdersModal(true)}
             className={`border p-3.5 rounded-2xl cursor-pointer transition shadow-md ${
-              isDarkMode ? 'bg-orange-500/10 border-orange-500/40' : 'bg-white border-orange-300 shadow-md'
+              isDarkMode ? 'bg-orange-500/10 border-orange-500/40 text-white' : 'bg-white border-orange-300 text-slate-900 shadow-md'
             }`}
           >
             <div className="flex justify-between items-center mb-1.5">
               <span className="text-xs font-bold text-orange-500 flex items-center gap-1">
                 <Flame className="w-3.5 h-3.5 animate-pulse text-orange-500" /> Live Kitchen Tracker
               </span>
-              <span className={`text-[10px] underline ${theme.subText}`}>View Ticket</span>
+              <span className={`text-[10px] underline ${theme.subText}`}>View Order Ticket</span>
             </div>
             <div className="grid grid-cols-3 gap-1 text-center">
-              <div className={`p-1 rounded-lg text-[10px] font-bold border ${activeMyOrder.status === 'pending' ? 'bg-orange-500 text-white border-orange-400' : 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30'}`}>
+              <div className={`p-1.5 rounded-lg text-[10px] font-bold border ${activeMyOrder.status === 'pending' ? 'bg-orange-500 text-white border-orange-400 animate-pulse' : 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30'}`}>
                 1. Received 🕒
               </div>
-              <div className={`p-1 rounded-lg text-[10px] font-bold border ${activeMyOrder.status === 'preparing' ? 'bg-orange-500 text-white border-orange-400 animate-pulse' : activeMyOrder.status === 'pending' ? 'bg-slate-800/40 text-slate-500 border-slate-700' : 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30'}`}>
+              <div className={`p-1.5 rounded-lg text-[10px] font-bold border ${activeMyOrder.status === 'preparing' ? 'bg-orange-500 text-white border-orange-400 animate-pulse' : 'bg-slate-800/20 text-slate-400 border-slate-700'}`}>
                 2. Cooking 🍳
               </div>
-              <div className="p-1 rounded-lg text-[10px] font-bold border bg-slate-800/40 text-slate-500 border-slate-700">
+              <div className="p-1.5 rounded-lg text-[10px] font-bold border bg-slate-800/20 text-slate-400 border-slate-700">
                 3. Ready 🍽️
               </div>
             </div>
@@ -565,37 +573,24 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
             {selectedPaymentMode === 'upi' && (
               <div className="p-4 rounded-xl border bg-white text-slate-900 text-center space-y-3 shadow-md">
-                <p className="text-xs font-bold text-orange-600">Step 1: Scan & Pay ₹{totalAmount}</p>
+                <p className="text-xs font-bold text-orange-600">Scan & Pay ₹{totalAmount}</p>
                 <div className="p-2 bg-white rounded-xl inline-block border border-orange-200 shadow-sm">
-                  <QRCodeSVG value={upiPaymentUrl} size={140} />
+                  <QRCodeSVG value={upiPaymentUrl} size={150} />
                 </div>
                 <p className="text-[11px] font-mono text-slate-700 font-bold">{cafeUPI}</p>
-                
-                <div className="pt-2 border-t border-slate-200">
-                  <p className="text-[10px] text-slate-600 font-bold mb-1">
-                    Step 2: Enter last 4 digits of UPI Ref / UTR No.*
-                  </p>
-                  <input
-                    type="text"
-                    maxLength={4}
-                    placeholder="e.g. 8492"
-                    value={upiRefNo}
-                    onChange={(e) => setUpiRefNo(e.target.value)}
-                    className="w-full text-center px-3 py-1.5 border-2 border-orange-400 rounded-lg text-xs bg-orange-50 focus:outline-none focus:border-orange-600 font-mono font-bold"
-                  />
-                  {!upiRefNo.trim() && (
-                    <span className="text-[9px] text-red-500 font-semibold block mt-1">
-                      *Payment Ref required to unlock order
-                    </span>
-                  )}
-                </div>
+                <a
+                  href={upiPaymentUrl}
+                  className="block w-full py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs"
+                >
+                  Pay Directly via GPay / PhonePe App
+                </a>
               </div>
             )}
 
             <button
               onClick={handlePlaceOrder}
-              disabled={submitting || (selectedPaymentMode === 'upi' && !upiRefNo.trim())}
-              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={submitting}
+              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition shadow-lg"
             >
               {submitting ? 'Placing Order...' : `Confirm Order (₹${totalAmount})`}
             </button>
