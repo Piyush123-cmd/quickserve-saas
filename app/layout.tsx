@@ -1,9 +1,8 @@
-import type { Metadata } from 'next';
 import './globals.css';
 
-export const metadata: Metadata = {
-  title: 'QuickServe - QR Order System',
-  description: 'Smart QR Ordering for Cafes & Restaurants',
+export const metadata = {
+  title: 'QuickServe SaaS',
+  description: 'Smart Multi-Tenant QR Ordering System',
 };
 
 export default function RootLayout({
