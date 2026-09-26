@@ -17,7 +17,6 @@ import {
   X, 
   CreditCard, 
   Banknote, 
-  Phone, 
   Droplets, 
   Receipt, 
   UserCheck, 
@@ -202,8 +201,9 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const handlePlaceOrder = async () => {
     if (cart.length === 0 || submitting || !cafe) return;
     
-    if (selectedPaymentMode === 'upi' && !upiRefNo.trim()) {
-      alert('Kripya UPI Ref / UTR No ke last 4 digits enter karein payment confirm karne ke liye!');
+    // Strict Payment Verification Guard
+    if (selectedPaymentMode === 'upi' && (!upiRefNo.trim() || upiRefNo.trim().length < 4)) {
+      alert('⚠️ Payment Verification Required:\nKripya UPI Transaction ka UTR / Ref No. ke last 4 digits enter karein!');
       return;
     }
 
@@ -211,7 +211,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
     try {
       const finalNote = selectedPaymentMode === 'upi' 
-        ? `[UPI UTR: ${upiRefNo}] ${specialInstructions.trim()}`.trim()
+        ? `[UPI UTR Ref: ${upiRefNo.trim()}] ${specialInstructions.trim()}`.trim()
         : specialInstructions.trim();
 
       const { data: orderData, error: orderError } = await supabase
@@ -291,27 +291,24 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const activeMyOrder = myOrders.find((o) => o.status !== 'completed' && o.status !== 'cancelled');
 
   const theme = {
-    bg: isDarkMode 
-      ? 'bg-slate-950 text-white' 
-      : 'bg-[#FE9135]/15 text-slate-900', // Rich Warm Orange Light BG
     header: isDarkMode 
-      ? 'bg-slate-900/90 border-slate-800' 
-      : 'bg-white/90 border-orange-200 shadow-sm',
+      ? 'bg-slate-900/90 border-slate-800 text-white' 
+      : 'bg-white/95 border-orange-200 text-slate-900 shadow-sm',
     card: isDarkMode 
-      ? 'bg-slate-900/70 border-slate-800' 
-      : 'bg-white border-orange-100 shadow-md',
+      ? 'bg-slate-900/80 border-slate-800 text-white' 
+      : 'bg-white border-orange-200/80 text-slate-900 shadow-md',
     panel: isDarkMode 
-      ? 'bg-slate-900 border-slate-800' 
-      : 'bg-white border-orange-200 shadow-lg',
+      ? 'bg-slate-900 border-slate-800 text-white' 
+      : 'bg-white border-orange-300 text-slate-900 shadow-xl',
     input: isDarkMode 
       ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' 
-      : 'bg-orange-50/50 border-orange-200 text-slate-900 placeholder-slate-400',
+      : 'bg-orange-50/60 border-orange-300 text-slate-900 placeholder-slate-400',
     subText: isDarkMode ? 'text-slate-400' : 'text-slate-600',
   };
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${theme.bg}`}>
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-orange-500"></div>
       </div>
     );
@@ -319,14 +316,17 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
   if (errorMsg) {
     return (
-      <div className={`min-h-screen flex items-center justify-center p-6 text-center ${theme.bg}`}>
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 text-center">
         <p className="text-red-400 font-bold">{errorMsg}</p>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen font-sans pb-32 transition-colors duration-200 ${theme.bg}`}>
+    <div 
+      className="min-h-screen font-sans pb-32 transition-colors duration-200"
+      style={{ backgroundColor: isDarkMode ? '#020617' : '#FFFAF5' }}
+    >
       {/* HEADER */}
       <header className={`sticky top-0 z-30 border-b backdrop-blur-md p-3.5 ${theme.header}`}>
         <div className="max-w-md mx-auto flex items-center justify-between">
@@ -358,7 +358,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
             <button
               onClick={toggleTheme}
-              className={`p-1.5 rounded-xl border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-400' : 'bg-white border-orange-300 text-slate-700'}`}
+              className={`p-1.5 rounded-xl border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-400' : 'bg-orange-100 border-orange-300 text-orange-700'}`}
               title="Toggle Theme"
             >
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -457,7 +457,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                     <img
                       src={imgUrl}
                       alt={item.name}
-                      className="w-24 h-24 object-cover rounded-2xl border border-orange-200/40 shadow-sm"
+                      className="w-24 h-24 object-cover rounded-2xl border border-orange-200/50 shadow-sm"
                       loading="lazy"
                     />
                     <div className="absolute -bottom-2">
@@ -474,7 +474,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                       ) : (
                         <button
                           onClick={() => addToCart(item)}
-                          className="px-4 py-1 bg-white hover:bg-orange-500 text-slate-900 hover:text-white border border-orange-200 shadow-md font-black text-xs rounded-xl uppercase tracking-wider transition"
+                          className="px-4 py-1 bg-white hover:bg-orange-500 text-slate-900 hover:text-white border border-orange-300 shadow-md font-black text-xs rounded-xl uppercase tracking-wider transition"
                         >
                           ADD +
                         </button>
@@ -490,7 +490,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
       {/* BOTTOM CART BAR */}
       {cart.length > 0 && (
-        <div className={`fixed bottom-0 left-0 right-0 p-4 border-t z-40 backdrop-blur-lg ${isDarkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-orange-200 shadow-xl'}`}>
+        <div className={`fixed bottom-0 left-0 right-0 p-4 border-t z-40 backdrop-blur-lg ${isDarkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-orange-300 shadow-2xl'}`}>
           <div className="max-w-md mx-auto">
             <button
               onClick={() => setShowCheckoutModal(true)}
@@ -572,23 +572,30 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                 <p className="text-[11px] font-mono text-slate-700 font-bold">{cafeUPI}</p>
                 
                 <div className="pt-2 border-t border-slate-200">
-                  <p className="text-[10px] text-slate-500 font-medium mb-1">Step 2: Enter last 4 digits of UPI Ref / UTR No.*</p>
+                  <p className="text-[10px] text-slate-600 font-bold mb-1">
+                    Step 2: Enter last 4 digits of UPI Ref / UTR No.*
+                  </p>
                   <input
                     type="text"
                     maxLength={4}
                     placeholder="e.g. 8492"
                     value={upiRefNo}
                     onChange={(e) => setUpiRefNo(e.target.value)}
-                    className="w-full text-center px-3 py-1.5 border border-orange-300 rounded-lg text-xs bg-orange-50/50 focus:outline-none focus:border-orange-500 font-mono font-bold"
+                    className="w-full text-center px-3 py-1.5 border-2 border-orange-400 rounded-lg text-xs bg-orange-50 focus:outline-none focus:border-orange-600 font-mono font-bold"
                   />
+                  {!upiRefNo.trim() && (
+                    <span className="text-[9px] text-red-500 font-semibold block mt-1">
+                      *Payment Ref required to unlock order
+                    </span>
+                  )}
                 </div>
               </div>
             )}
 
             <button
               onClick={handlePlaceOrder}
-              disabled={submitting}
-              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition shadow-lg"
+              disabled={submitting || (selectedPaymentMode === 'upi' && !upiRefNo.trim())}
+              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {submitting ? 'Placing Order...' : `Confirm Order (₹${totalAmount})`}
             </button>
