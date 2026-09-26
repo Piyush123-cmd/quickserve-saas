@@ -20,7 +20,9 @@ import {
   Receipt, 
   UserCheck, 
   Flame, 
-  Search 
+  Search,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import confetti from 'canvas-confetti';
@@ -103,6 +105,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const [customerPhone, setCustomerPhone] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [selectedPaymentMode, setSelectedPaymentMode] = useState<'cash' | 'upi'>('cash');
+  const [upiPaymentConfirmed, setUpiPaymentConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
 
@@ -146,7 +149,6 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
         fetchOrders(cafeData.id);
 
-        // Realtime Subscription for Kitchen Updates
         const channel = supabase
           .channel(`customer_orders_${cafeData.id}`)
           .on(
@@ -213,11 +215,16 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   };
 
   const totalAmount = cart.reduce((sum, i) => sum + i.item.price * i.quantity, 0);
-  const cafeUPI = cafe?.upi_id || 'paytmqr2810050501011111@paytm';
+  const cafeUPI = cafe?.upi_id || 'test1@upi';
   const upiPaymentUrl = `upi://pay?pa=${cafeUPI}&pn=${encodeURIComponent(cafe?.name || 'Cafe')}&am=${totalAmount}&cu=INR&tn=Table${tableNo}_Order`;
 
   const handlePlaceOrder = async () => {
     if (cart.length === 0 || submitting || !cafe) return;
+
+    if (selectedPaymentMode === 'upi' && !upiPaymentConfirmed) {
+      alert('⚠️ Kripya UPI scan karke "I Have Paid" checkbox par tick karein!');
+      return;
+    }
 
     setSubmitting(true);
 
@@ -259,6 +266,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
       setShowCheckoutModal(false);
       setCart([]);
       setSpecialInstructions('');
+      setUpiPaymentConfirmed(false);
       fetchOrders(cafe.id);
     } catch (err) {
       console.error(err);
@@ -294,8 +302,6 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   }, [menuItems, searchQuery, filterType]);
 
   const myOrders = orders.filter((o) => customerOrderIds.includes(o.id));
-  
-  // Active Order: Shows tracker ONLY if order is in pending or preparing status
   const activeMyOrder = myOrders.find((o) => o.status === 'pending' || o.status === 'preparing');
 
   const theme = {
@@ -376,7 +382,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
       </header>
 
       <main className="max-w-md mx-auto p-4 space-y-4">
-        {/* LIVE ORDER TRACKER BANNER (REALTIME) */}
+        {/* LIVE ORDER TRACKER BANNER */}
         {activeMyOrder && (
           <div
             onClick={() => setShowMyOrdersModal(true)}
@@ -554,7 +560,10 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             <div className="grid grid-cols-2 gap-3 pt-1">
               <button
                 type="button"
-                onClick={() => setSelectedPaymentMode('cash')}
+                onClick={() => {
+                  setSelectedPaymentMode('cash');
+                  setUpiPaymentConfirmed(false);
+                }}
                 className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-xs font-semibold transition ${selectedPaymentMode === 'cash' ? 'border-orange-500 bg-orange-500/10 text-orange-500' : 'border-slate-700 bg-slate-800 text-slate-400'}`}
               >
                 <Banknote className="w-5 h-5" />
@@ -580,19 +589,38 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                 <p className="text-[11px] font-mono text-slate-700 font-bold">{cafeUPI}</p>
                 <a
                   href={upiPaymentUrl}
-                  className="block w-full py-2 bg-emerald-600 text-white rounded-xl font-bold text-xs"
+                  onClick={() => setUpiPaymentConfirmed(true)}
+                  className="block w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow transition"
                 >
                   Pay Directly via GPay / PhonePe App
                 </a>
+
+                <div 
+                  onClick={() => setUpiPaymentConfirmed(!upiPaymentConfirmed)}
+                  className="flex items-center justify-center gap-2 pt-2 border-t border-slate-200 cursor-pointer"
+                >
+                  {upiPaymentConfirmed ? (
+                    <CheckSquare className="w-4 h-4 text-emerald-600" />
+                  ) : (
+                    <Square className="w-4 h-4 text-slate-400" />
+                  )}
+                  <span className="text-[11px] font-bold text-slate-700">
+                    I Have Completed Payment via UPI
+                  </span>
+                </div>
               </div>
             )}
 
             <button
               onClick={handlePlaceOrder}
-              disabled={submitting}
-              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition shadow-lg"
+              disabled={submitting || (selectedPaymentMode === 'upi' && !upiPaymentConfirmed)}
+              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {submitting ? 'Placing Order...' : `Confirm Order (₹${totalAmount})`}
+              {submitting 
+                ? 'Placing Order...' 
+                : (selectedPaymentMode === 'upi' && !upiPaymentConfirmed)
+                ? 'Complete UPI Payment Above First'
+                : `Confirm Order (₹${totalAmount})`}
             </button>
           </div>
         </div>
