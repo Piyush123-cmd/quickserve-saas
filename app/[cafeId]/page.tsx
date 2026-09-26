@@ -222,13 +222,14 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
     if (cart.length === 0 || submitting || !cafe) return;
 
     if (selectedPaymentMode === 'upi' && !upiPaymentConfirmed) {
-      alert('⚠️ Kripya UPI scan karke "I Have Paid" checkbox par tick karein!');
+      alert('⚠️ Kripya UPI scan karke "I Have Completed Payment via UPI" checkbox tick karein!');
       return;
     }
 
     setSubmitting(true);
 
     try {
+      // Option A Flow: UPI payment pending manager verification at Counter / Admin KDS
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -238,7 +239,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           customer_name: customerName || (customerPhone ? `Guest (${customerPhone})` : 'Guest'),
           total_amount: totalAmount,
           payment_mode: selectedPaymentMode,
-          payment_status: selectedPaymentMode === 'upi' ? 'paid' : 'pending',
+          payment_status: selectedPaymentMode === 'upi' ? 'pending' : 'pending',
           status: 'pending',
           special_instructions: specialInstructions.trim() || null,
         })
