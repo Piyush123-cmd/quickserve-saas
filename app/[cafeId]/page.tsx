@@ -104,6 +104,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
+  const [upiRefNo, setUpiRefNo] = useState('');
   const [selectedPaymentMode, setSelectedPaymentMode] = useState<'cash' | 'upi'>('cash');
   const [submitting, setSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -144,7 +145,6 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
         if (menuData) setMenuItems(menuData);
 
-        // Saved Order IDs
         const saved = localStorage.getItem(`quickserve_orders_${cafeData.id}`);
         if (saved) setCustomerOrderIds(JSON.parse(saved));
 
@@ -201,9 +201,19 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
   const handlePlaceOrder = async () => {
     if (cart.length === 0 || submitting || !cafe) return;
+    
+    if (selectedPaymentMode === 'upi' && !upiRefNo.trim()) {
+      alert('Kripya UPI Ref / UTR No ke last 4 digits enter karein payment confirm karne ke liye!');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
+      const finalNote = selectedPaymentMode === 'upi' 
+        ? `[UPI UTR: ${upiRefNo}] ${specialInstructions.trim()}`.trim()
+        : specialInstructions.trim();
+
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -215,7 +225,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           payment_mode: selectedPaymentMode,
           payment_status: selectedPaymentMode === 'upi' ? 'paid' : 'pending',
           status: 'pending',
-          special_instructions: specialInstructions.trim() || null,
+          special_instructions: finalNote || null,
         })
         .select()
         .single();
@@ -242,6 +252,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
       setOrderSuccess(true);
       setCart([]);
       setSpecialInstructions('');
+      setUpiRefNo('');
       fetchOrders(cafe.id);
     } catch (err) {
       console.error(err);
@@ -280,12 +291,22 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const activeMyOrder = myOrders.find((o) => o.status !== 'completed' && o.status !== 'cancelled');
 
   const theme = {
-    bg: isDarkMode ? 'bg-slate-950 text-white' : 'bg-amber-50/50 text-slate-900',
-    header: isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/90 border-amber-200 shadow-sm',
-    card: isDarkMode ? 'bg-slate-900/70 border-slate-800' : 'bg-white border-amber-100 shadow-sm',
-    panel: isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-amber-200 shadow-md',
-    input: isDarkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-100 border-slate-300 text-slate-900 placeholder-slate-400',
-    subText: isDarkMode ? 'text-slate-400' : 'text-slate-500',
+    bg: isDarkMode 
+      ? 'bg-slate-950 text-white' 
+      : 'bg-[#FE9135]/15 text-slate-900', // Rich Warm Orange Light BG
+    header: isDarkMode 
+      ? 'bg-slate-900/90 border-slate-800' 
+      : 'bg-white/90 border-orange-200 shadow-sm',
+    card: isDarkMode 
+      ? 'bg-slate-900/70 border-slate-800' 
+      : 'bg-white border-orange-100 shadow-md',
+    panel: isDarkMode 
+      ? 'bg-slate-900 border-slate-800' 
+      : 'bg-white border-orange-200 shadow-lg',
+    input: isDarkMode 
+      ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' 
+      : 'bg-orange-50/50 border-orange-200 text-slate-900 placeholder-slate-400',
+    subText: isDarkMode ? 'text-slate-400' : 'text-slate-600',
   };
 
   if (loading) {
@@ -321,7 +342,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             {myOrders.length > 0 && (
               <button
                 onClick={() => setShowMyOrdersModal(true)}
-                className="px-2.5 py-1 bg-orange-500/10 hover:bg-orange-500/20 text-orange-500 border border-orange-500/30 rounded-full text-xs font-semibold flex items-center gap-1 transition"
+                className="px-2.5 py-1 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 border border-orange-500/30 rounded-full text-xs font-semibold flex items-center gap-1 transition"
               >
                 <History className="w-3.5 h-3.5" />
                 <span>Orders ({myOrders.length})</span>
@@ -330,14 +351,14 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
             <button
               onClick={() => setShowAssistanceModal(true)}
-              className="px-2.5 py-1 bg-orange-500 text-white rounded-full text-xs font-bold flex items-center gap-1 shadow transition"
+              className="px-2.5 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded-full text-xs font-bold flex items-center gap-1 shadow transition"
             >
               <Bell className="w-3.5 h-3.5 animate-bounce" /> Call Waiter
             </button>
 
             <button
               onClick={toggleTheme}
-              className={`p-1.5 rounded-xl border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-400' : 'bg-white border-slate-300 text-slate-700'}`}
+              className={`p-1.5 rounded-xl border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-400' : 'bg-white border-orange-300 text-slate-700'}`}
               title="Toggle Theme"
             >
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -352,7 +373,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           <div
             onClick={() => setShowMyOrdersModal(true)}
             className={`border p-3.5 rounded-2xl cursor-pointer transition shadow-md ${
-              isDarkMode ? 'bg-orange-500/10 border-orange-500/40' : 'bg-orange-50 border-orange-200'
+              isDarkMode ? 'bg-orange-500/10 border-orange-500/40' : 'bg-white border-orange-300 shadow-md'
             }`}
           >
             <div className="flex justify-between items-center mb-1.5">
@@ -362,10 +383,10 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
               <span className={`text-[10px] underline ${theme.subText}`}>View Ticket</span>
             </div>
             <div className="grid grid-cols-3 gap-1 text-center">
-              <div className={`p-1 rounded-lg text-[10px] font-bold border ${activeMyOrder.status === 'pending' ? 'bg-orange-500 text-white border-orange-400' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
+              <div className={`p-1 rounded-lg text-[10px] font-bold border ${activeMyOrder.status === 'pending' ? 'bg-orange-500 text-white border-orange-400' : 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30'}`}>
                 1. Received 🕒
               </div>
-              <div className={`p-1 rounded-lg text-[10px] font-bold border ${activeMyOrder.status === 'preparing' ? 'bg-orange-500 text-white border-orange-400 animate-pulse' : activeMyOrder.status === 'pending' ? 'bg-slate-800/40 text-slate-500 border-slate-700' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
+              <div className={`p-1 rounded-lg text-[10px] font-bold border ${activeMyOrder.status === 'preparing' ? 'bg-orange-500 text-white border-orange-400 animate-pulse' : activeMyOrder.status === 'pending' ? 'bg-slate-800/40 text-slate-500 border-slate-700' : 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30'}`}>
                 2. Cooking 🍳
               </div>
               <div className="p-1 rounded-lg text-[10px] font-bold border bg-slate-800/40 text-slate-500 border-slate-700">
@@ -391,19 +412,19 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           <div className="flex gap-2">
             <button
               onClick={() => setFilterType('all')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${filterType === 'all' ? 'bg-orange-500 text-white' : 'bg-slate-800/40 text-slate-400'}`}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${filterType === 'all' ? 'bg-orange-500 text-white' : 'bg-orange-500/10 text-orange-600'}`}
             >
               All ({menuItems.length})
             </button>
             <button
               onClick={() => setFilterType('veg')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${filterType === 'veg' ? 'bg-emerald-500 text-white' : 'bg-slate-800/40 text-slate-400'}`}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${filterType === 'veg' ? 'bg-emerald-500 text-white' : 'bg-emerald-500/10 text-emerald-600'}`}
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-400" /> Veg
+              <span className="w-2 h-2 rounded-full bg-emerald-500" /> Veg
             </button>
             <button
               onClick={() => setFilterType('non-veg')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${filterType === 'non-veg' ? 'bg-red-500 text-white' : 'bg-slate-800/40 text-slate-400'}`}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${filterType === 'non-veg' ? 'bg-red-500 text-white' : 'bg-red-500/10 text-red-600'}`}
             >
               <span className="w-2 h-2 rounded-full bg-red-500" /> Non-Veg
             </button>
@@ -423,7 +444,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                 <div key={item.id} className={`border rounded-2xl p-3.5 flex items-center justify-between gap-3 ${theme.card}`}>
                   <div className="flex-1 pr-1">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.is_veg ? 'bg-emerald-400' : 'bg-red-500'}`} />
+                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.is_veg ? 'bg-emerald-500' : 'bg-red-500'}`} />
                       <h3 className="font-bold text-sm">{item.name}</h3>
                     </div>
                     <div className="text-sm font-black text-orange-500">₹{item.price}</div>
@@ -436,7 +457,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                     <img
                       src={imgUrl}
                       alt={item.name}
-                      className="w-24 h-24 object-cover rounded-2xl border border-slate-700/20 shadow-sm"
+                      className="w-24 h-24 object-cover rounded-2xl border border-orange-200/40 shadow-sm"
                       loading="lazy"
                     />
                     <div className="absolute -bottom-2">
@@ -453,7 +474,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                       ) : (
                         <button
                           onClick={() => addToCart(item)}
-                          className="px-4 py-1 bg-white hover:bg-orange-500 text-slate-900 hover:text-white border border-slate-200 shadow-md font-black text-xs rounded-xl uppercase tracking-wider transition"
+                          className="px-4 py-1 bg-white hover:bg-orange-500 text-slate-900 hover:text-white border border-orange-200 shadow-md font-black text-xs rounded-xl uppercase tracking-wider transition"
                         >
                           ADD +
                         </button>
@@ -469,7 +490,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
       {/* BOTTOM CART BAR */}
       {cart.length > 0 && (
-        <div className={`fixed bottom-0 left-0 right-0 p-4 border-t z-40 backdrop-blur-lg ${isDarkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-amber-200 shadow-xl'}`}>
+        <div className={`fixed bottom-0 left-0 right-0 p-4 border-t z-40 backdrop-blur-lg ${isDarkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-orange-200 shadow-xl'}`}>
           <div className="max-w-md mx-auto">
             <button
               onClick={() => setShowCheckoutModal(true)}
@@ -543,12 +564,24 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             </div>
 
             {selectedPaymentMode === 'upi' && (
-              <div className="p-4 rounded-xl border bg-white text-slate-900 text-center space-y-2 shadow">
-                <p className="text-xs font-bold">Scan & Pay ₹{totalAmount}</p>
-                <div className="p-2 bg-white rounded-xl inline-block border">
+              <div className="p-4 rounded-xl border bg-white text-slate-900 text-center space-y-3 shadow-md">
+                <p className="text-xs font-bold text-orange-600">Step 1: Scan & Pay ₹{totalAmount}</p>
+                <div className="p-2 bg-white rounded-xl inline-block border border-orange-200 shadow-sm">
                   <QRCodeSVG value={upiPaymentUrl} size={140} />
                 </div>
-                <p className="text-[11px] font-mono text-orange-600 font-bold">{cafeUPI}</p>
+                <p className="text-[11px] font-mono text-slate-700 font-bold">{cafeUPI}</p>
+                
+                <div className="pt-2 border-t border-slate-200">
+                  <p className="text-[10px] text-slate-500 font-medium mb-1">Step 2: Enter last 4 digits of UPI Ref / UTR No.*</p>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    placeholder="e.g. 8492"
+                    value={upiRefNo}
+                    onChange={(e) => setUpiRefNo(e.target.value)}
+                    className="w-full text-center px-3 py-1.5 border border-orange-300 rounded-lg text-xs bg-orange-50/50 focus:outline-none focus:border-orange-500 font-mono font-bold"
+                  />
+                </div>
               </div>
             )}
 
@@ -584,21 +617,21 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
               <div className="grid grid-cols-1 gap-2 pt-1">
                 <button
                   onClick={() => handleSendAssistance('Call Waiter')}
-                  className="p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold bg-slate-800 hover:bg-orange-500/20 border-slate-700 transition"
+                  className="p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold bg-slate-800 hover:bg-orange-500/20 border-slate-700 text-white transition"
                 >
                   <UserCheck className="w-4 h-4 text-orange-500" />
                   <span>Call Waiter to Table</span>
                 </button>
                 <button
                   onClick={() => handleSendAssistance('Bring Drinking Water')}
-                  className="p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold bg-slate-800 hover:bg-blue-500/20 border-slate-700 transition"
+                  className="p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold bg-slate-800 hover:bg-blue-500/20 border-slate-700 text-white transition"
                 >
                   <Droplets className="w-4 h-4 text-blue-500" />
                   <span>Need Drinking Water</span>
                 </button>
                 <button
                   onClick={() => handleSendAssistance('Bring Table Bill')}
-                  className="p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold bg-slate-800 hover:bg-emerald-500/20 border-slate-700 transition"
+                  className="p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold bg-slate-800 hover:bg-emerald-500/20 border-slate-700 text-white transition"
                 >
                   <Receipt className="w-4 h-4 text-emerald-500" />
                   <span>Request Final Bill</span>
@@ -627,7 +660,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             ) : (
               <div className="space-y-3">
                 {myOrders.map((ord, idx) => (
-                  <div key={ord.id} className="border border-slate-800 rounded-xl p-3.5 space-y-2 bg-slate-950">
+                  <div key={ord.id} className="border border-slate-800 rounded-xl p-3.5 space-y-2 bg-slate-950 text-white">
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold">Order #{myOrders.length - idx}</span>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${ord.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-orange-500/10 text-orange-400 border-orange-500/30 animate-pulse'}`}>
