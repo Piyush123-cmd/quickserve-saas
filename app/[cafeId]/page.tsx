@@ -51,6 +51,7 @@ interface CafeDetails {
   name: string;
   slug: string;
   upi_id?: string;
+  is_active?: boolean;
   is_subscription_active?: boolean;
 }
 
@@ -134,7 +135,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
         setLoading(true);
         const { data: cafeData, error: cafeError } = await supabase
           .from('cafes')
-          .select('id, name, slug, upi_id, is_subscription_active')
+          .select('*')
           .eq('slug', cafeSlug)
           .single();
 
@@ -343,8 +344,10 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
     );
   }
 
-  // PROFESSIONAL SUBSCRIPTION EXPIRED SCREEN
-  if (cafe && cafe.is_subscription_active === false) {
+  // PROFESSIONAL SUBSCRIPTION EXPIRED SCREEN (Handles both is_active and is_subscription_active)
+  const isSubscriptionActive = cafe?.is_active ?? cafe?.is_subscription_active ?? true;
+
+  if (cafe && isSubscriptionActive === false) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 text-center">
         <div className="max-w-md bg-slate-900 border border-red-500/30 rounded-3xl p-8 space-y-4 shadow-2xl">
