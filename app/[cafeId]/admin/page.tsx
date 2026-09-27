@@ -22,11 +22,22 @@ interface Order {
   id: string;
   table_number: string;
   customer_name: string;
+  customer_phone?: string;
   total_amount: number;
   status: string;
   created_at: string;
   notes: string | null;
+  payment_mode?: string;
+  payment_status?: string;
   order_items: OrderItem[];
+}
+
+interface ServiceRequest {
+  id: string;
+  table_number: number;
+  request_type: string;
+  status: string;
+  created_at: string;
 }
 
 interface Cafe {
@@ -38,6 +49,29 @@ interface Cafe {
   kitchen_pin?: string;
 }
 
+function playNotificationSound() {
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.5);
+  } catch (e) {
+    console.error('Audio chime play error:', e);
+  }
+}
+
 export default function MultiTenantAdminDashboard() {
   const params = useParams();
   const cafeSlug = params?.cafeId as string;
@@ -47,6 +81,7 @@ export default function MultiTenantAdminDashboard() {
   const [timeFilter, setTimeFilter] = useState<'today' | 'yesterday' | '7days' | 'all'>('today');
   
   const [orders, setOrders] = useState<Order[]>([]);
+  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Authentication Lock States
@@ -93,7 +128,7 @@ export default function MultiTenantAdminDashboard() {
       const { data: ordersData, error: ordersErr } = await supabase
         .from('orders')
         .select(`
-          id, table_number, customer_name, total_amount, status, created_at, notes,
+          id, table_number, customer_name, customer_phone, total_amount, status, created_at, notes, payment_mode, payment_status,
           order_items (
             id, quantity, price,
             menu_items ( name )
@@ -104,6 +139,15 @@ export default function MultiTenantAdminDashboard() {
 
       if (ordersErr) console.error('Orders Error:', ordersErr);
       else setOrders((ordersData as any) || []);
+
+      const { data: reqData } = await supabase
+        .from('service_requests')
+        .select('*')
+        .eq('cafe_id', cafeData.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (reqData) setServiceRequests(reqData);
 
     } catch (err) {
       console.error(err);
@@ -117,7 +161,8 @@ export default function MultiTenantAdminDashboard() {
 
     if (!cafeSlug) return;
 
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let ordersChannel: ReturnType<typeof supabase.channel> | null = null;
+    let serviceChannel: ReturnType<typeof supabase.channel> | null = null;
 
     const initRealtime = async () => {
       const { data: cafeData } = await supabase
@@ -127,10 +172,22 @@ export default function MultiTenantAdminDashboard() {
         .maybeSingle();
 
       if (cafeData?.id) {
-        const channelName = `realtime_orders_${cafeData.id}_${Date.now()}`;
-        channel = supabase.channel(channelName);
+        ordersChannel = supabase.channel(`realtime_orders_${cafeData.id}_${Date.now()}`);
 
-        channel
+        ordersChannel
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'orders',
+              filter: `cafe_id=eq.${cafeData.id}`
+            },
+            () => {
+              playNotificationSound();
+              loadData();
+            }
+          )
           .on(
             'postgres_changes',
             {
@@ -144,15 +201,44 @@ export default function MultiTenantAdminDashboard() {
             }
           )
           .subscribe();
+
+        serviceChannel = supabase.channel(`realtime_service_${cafeData.id}_${Date.now()}`);
+
+        serviceChannel
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'service_requests',
+              filter: `cafe_id=eq.${cafeData.id}`
+            },
+            () => {
+              playNotificationSound();
+              loadData();
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'service_requests',
+              filter: `cafe_id=eq.${cafeData.id}`
+            },
+            () => {
+              loadData();
+            }
+          )
+          .subscribe();
       }
     };
 
     initRealtime();
 
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      if (ordersChannel) supabase.removeChannel(ordersChannel);
+      if (serviceChannel) supabase.removeChannel(serviceChannel);
     };
   }, [cafeSlug]);
 
@@ -171,7 +257,7 @@ export default function MultiTenantAdminDashboard() {
         localStorage.setItem(`qs_admin_session_${cafe.id}`, 'unlocked');
         setPinInput('');
       } else {
-        setPinError('Galat Admin PIN! Kripya sahi passcode daalein.');
+        setPinError('Invalid Admin PIN! Please enter the correct passcode.');
       }
     } else if (activeTab === 'kitchen') {
       if (pinInput === expectedKitchenPin || pinInput === expectedAdminPin) {
@@ -179,7 +265,7 @@ export default function MultiTenantAdminDashboard() {
         localStorage.setItem(`qs_kitchen_session_${cafe.id}`, 'unlocked');
         setPinInput('');
       } else {
-        setPinError('Galat Kitchen PIN! Kripya sahi passcode daalein.');
+        setPinError('Invalid Kitchen PIN! Please enter the correct passcode.');
       }
     }
   };
@@ -197,6 +283,11 @@ export default function MultiTenantAdminDashboard() {
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+    loadData();
+  };
+
+  const resolveServiceRequest = async (reqId: string) => {
+    await supabase.from('service_requests').update({ status: 'resolved' }).eq('id', reqId);
     loadData();
   };
 
@@ -227,6 +318,34 @@ export default function MultiTenantAdminDashboard() {
     } finally {
       setAddingDish(false);
     }
+  };
+
+  const exportAuditCSV = () => {
+    if (orders.length === 0) {
+      alert('No orders available to export.');
+      return;
+    }
+
+    const headers = ['Order ID', 'Table Number', 'Customer Name', 'Phone Number', 'Total Amount (INR)', 'Payment Mode', 'Status', 'Date & Time'];
+    const rows = orders.map((o) => [
+      o.id.slice(0, 8),
+      o.table_number || 'N/A',
+      `"${o.customer_name || 'Guest'}"`,
+      `"${o.customer_phone || 'N/A'}"`,
+      o.total_amount,
+      o.payment_mode?.toUpperCase() || 'CASH',
+      o.status,
+      new Date(o.created_at).toLocaleString('en-IN')
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `${cafeSlug}_order_audit_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handlePrintQR = () => {
@@ -298,7 +417,7 @@ export default function MultiTenantAdminDashboard() {
       <div className="min-h-screen bg-[#0A0D14] text-white flex flex-col items-center justify-center p-6 text-center">
         <h1 className="text-3xl font-extrabold text-red-500 mb-2">{cafe.name} - Subscription Expired 🚫</h1>
         <p className="text-gray-400 text-sm max-w-md mb-6">
-          Is cafe ka QuickServe SaaS plan filhal paused ya expired hai. Continuous services ke liye kripya QuickServe Support se sampark karein.
+          The QuickServe SaaS active subscription for this café is currently paused or expired. For continuous services, please contact QuickServe Support.
         </p>
       </div>
     );
@@ -346,6 +465,14 @@ export default function MultiTenantAdminDashboard() {
         </div>
 
         <div className="flex items-center gap-2 bg-[#161F2E] p-1.5 rounded-xl border border-gray-800">
+          <button
+            onClick={playNotificationSound}
+            className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-orange-400 text-xs font-bold rounded-lg border border-gray-700 transition"
+            title="Test Kitchen Sound Chime"
+          >
+            🔔 Test Chime
+          </button>
+
           <button
             onClick={() => { setActiveTab('admin'); setPinError(''); }}
             className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
@@ -466,7 +593,16 @@ export default function MultiTenantAdminDashboard() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-2 bg-[#121824] border border-gray-800 rounded-2xl p-5">
-                    <h3 className="text-base font-bold text-white mb-4">Orders Audit Log ({filteredOrders.length})</h3>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-base font-bold text-white">Orders Audit Log ({filteredOrders.length})</h3>
+                      <button
+                        onClick={exportAuditCSV}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition shadow flex items-center gap-1"
+                      >
+                        📥 Export Audit CSV
+                      </button>
+                    </div>
+
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-xs text-gray-300">
                         <thead className="bg-[#161F2E] text-gray-400 border-b border-gray-800">
@@ -474,6 +610,7 @@ export default function MultiTenantAdminDashboard() {
                             <th className="p-3">Time</th>
                             <th className="p-3">Table</th>
                             <th className="p-3">Customer</th>
+                            <th className="p-3">Phone</th>
                             <th className="p-3">Amount</th>
                             <th className="p-3">Status</th>
                           </tr>
@@ -481,14 +618,15 @@ export default function MultiTenantAdminDashboard() {
                         <tbody className="divide-y divide-gray-800/60">
                           {filteredOrders.length === 0 ? (
                             <tr>
-                              <td colSpan={5} className="p-4 text-center text-gray-500">No orders found.</td>
+                              <td colSpan={6} className="p-4 text-center text-gray-500">No orders found.</td>
                             </tr>
                           ) : (
                             filteredOrders.map((o) => (
                               <tr key={o.id} className="hover:bg-[#161F2E]/50">
                                 <td className="p-3 font-mono">{new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                                 <td className="p-3 font-bold text-orange-400">#{o.table_number}</td>
-                                <td className="p-3">{o.customer_name}</td>
+                                <td className="p-3">{o.customer_name || 'Guest'}</td>
+                                <td className="p-3 font-mono text-gray-400">{o.customer_phone || 'N/A'}</td>
                                 <td className="p-3 font-bold text-white">₹{o.total_amount}</td>
                                 <td className="p-3">
                                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
@@ -562,7 +700,32 @@ export default function MultiTenantAdminDashboard() {
             )}
 
             {activeTab === 'kitchen' && (
-              <div className="space-y-4">
+              <div className="space-y-6">
+                {/* ACTIVE WAITER ASSISTANCE REQUESTS */}
+                {serviceRequests.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                      🔔 Active Table Assistance Requests ({serviceRequests.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {serviceRequests.map((req) => (
+                        <div key={req.id} className="bg-amber-500/10 border border-amber-500/30 p-3.5 rounded-2xl flex items-center justify-between">
+                          <div>
+                            <span className="font-extrabold text-amber-400 text-sm">Table #{req.table_number}</span>
+                            <p className="text-xs font-bold text-white">{req.request_type}</p>
+                          </div>
+                          <button
+                            onClick={() => resolveServiceRequest(req.id)}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl transition"
+                          >
+                            ✓ Resolve
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <h2 className="text-lg font-bold text-white">Live Kitchen Display System (KDS)</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {orders.filter(o => o.status !== 'completed').length === 0 ? (
@@ -575,7 +738,7 @@ export default function MultiTenantAdminDashboard() {
                         <div>
                           <div className="flex justify-between items-center mb-3">
                             <span className="text-lg font-black text-orange-400">Table #{order.table_number}</span>
-                            <span className="text-xs text-gray-400">{order.customer_name}</span>
+                            <span className="text-xs text-gray-400 font-medium">{order.customer_name || 'Guest'}</span>
                           </div>
                           <div className="space-y-1 mb-4 border-t border-b border-gray-800 py-2">
                             {order.order_items?.map((item) => (
