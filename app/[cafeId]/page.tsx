@@ -22,7 +22,11 @@ import {
   Flame, 
   Search,
   CheckSquare,
-  Square
+  Square,
+  FileText,
+  Download,
+  AlertOctagon,
+  PhoneCall
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import confetti from 'canvas-confetti';
@@ -47,6 +51,7 @@ interface CafeDetails {
   name: string;
   slug: string;
   upi_id?: string;
+  is_subscription_active?: boolean;
 }
 
 interface Order {
@@ -109,6 +114,10 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
 
+  // Success & Bill Modals
+  const [placedOrderDetails, setPlacedOrderDetails] = useState<Order | null>(null);
+  const [showBillModal, setShowBillModal] = useState<Order | null>(null);
+
   // Modals
   const [showAssistanceModal, setShowAssistanceModal] = useState(false);
   const [assistanceSent, setAssistanceSent] = useState(false);
@@ -125,7 +134,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
         setLoading(true);
         const { data: cafeData, error: cafeError } = await supabase
           .from('cafes')
-          .select('id, name, slug, upi_id')
+          .select('id, name, slug, upi_id, is_subscription_active')
           .eq('slug', cafeSlug)
           .single();
 
@@ -229,7 +238,6 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
     setSubmitting(true);
 
     try {
-      // Option A Flow: UPI payment pending manager verification at Counter / Admin KDS
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -259,12 +267,18 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
       await supabase.from('order_items').insert(orderItems);
 
+      const fullOrderObj: Order = {
+        ...orderData,
+        order_items: orderItems.map((i) => ({ ...i, id: i.menu_item_id, menu_items: { name: i.name } })),
+      };
+
       const updatedIds = [orderData.id, ...customerOrderIds];
       setCustomerOrderIds(updatedIds);
       localStorage.setItem(`quickserve_orders_${cafe.id}`, JSON.stringify(updatedIds));
 
-      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
       setShowCheckoutModal(false);
+      setPlacedOrderDetails(fullOrderObj);
       setCart([]);
       setSpecialInstructions('');
       setUpiPaymentConfirmed(false);
@@ -325,6 +339,30 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
+  // PROFESSIONAL SUBSCRIPTION EXPIRED SCREEN
+  if (cafe && cafe.is_subscription_active === false) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 text-center">
+        <div className="max-w-md bg-slate-900 border border-red-500/30 rounded-3xl p-8 space-y-4 shadow-2xl">
+          <AlertOctagon className="w-16 h-16 text-red-500 mx-auto animate-pulse" />
+          <h2 className="text-xl font-black text-red-400">Subscription Plan Expired 🚫</h2>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            The QuickServe SaaS active subscription for <strong className="text-white">{cafe.name}</strong> is currently paused or expired.
+          </p>
+          <div className="p-3 bg-slate-800/80 border border-slate-700 rounded-2xl text-[11px] text-slate-400">
+            To restore live digital menu & QR ordering services, please contact QuickServe Enterprise Support.
+          </div>
+          <a
+            href="tel:+919876543210"
+            className="inline-flex items-center justify-center gap-2 w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-xs transition shadow-lg"
+          >
+            <PhoneCall className="w-4 h-4" /> Contact QuickServe Support
+          </a>
+        </div>
       </div>
     );
   }
@@ -395,7 +433,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
               <span className="text-xs font-bold text-orange-500 flex items-center gap-1">
                 <Flame className="w-3.5 h-3.5 animate-pulse text-orange-500" /> Live Kitchen Tracker
               </span>
-              <span className={`text-[10px] underline ${theme.subText}`}>View Order Ticket</span>
+              <span className={`text-[10px] underline ${theme.subText}`}>View Ticket</span>
             </div>
             <div className="grid grid-cols-3 gap-1 text-center">
               <div className={`p-1.5 rounded-lg text-[10px] font-bold border ${activeMyOrder.status === 'pending' ? 'bg-orange-500 text-white border-orange-400 animate-pulse' : 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30'}`}>
@@ -518,7 +556,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
         </div>
       )}
 
-      {/* CHECKOUT & PAYMENT MODAL */}
+      {/* CHECKOUT MODAL */}
       {showCheckoutModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className={`border w-full max-w-sm rounded-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto ${theme.panel}`}>
@@ -627,6 +665,101 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
         </div>
       )}
 
+      {/* POST ORDER SUCCESS & BILL DOWNLOAD MODAL */}
+      {placedOrderDetails && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-orange-500/40 w-full max-w-sm rounded-3xl p-6 text-center space-y-4 text-white shadow-2xl">
+            <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto animate-bounce" />
+            
+            <div>
+              <h2 className="text-xl font-black text-orange-500">Order Placed Successfully! 🍳</h2>
+              <p className="text-xs text-slate-300 mt-1">Table #{tableNo} • Chef is preparing your dishes.</p>
+            </div>
+
+            <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-left space-y-1.5 text-xs">
+              <div className="flex justify-between font-bold text-slate-300">
+                <span>Total Amount:</span>
+                <span className="text-orange-400">₹{placedOrderDetails.total_amount}</span>
+              </div>
+              <div className="flex justify-between text-[11px] text-slate-400">
+                <span>Payment Mode:</span>
+                <span className="uppercase font-mono">{placedOrderDetails.payment_mode}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => {
+                  setShowBillModal(placedOrderDetails);
+                  setPlacedOrderDetails(null);
+                }}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition"
+              >
+                <FileText className="w-4 h-4" /> View & Download Digital Bill 📄
+              </button>
+
+              <button
+                onClick={() => setPlacedOrderDetails(null)}
+                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-2xl text-xs transition"
+              >
+                Back to Menu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PRINTABLE DIGITAL BILL MODAL */}
+      {showBillModal && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white text-slate-900 w-full max-w-sm rounded-3xl p-6 space-y-4 shadow-2xl print:m-0 print:shadow-none">
+            <div className="flex justify-between items-start border-b pb-3">
+              <div>
+                <h2 className="font-black text-lg text-slate-900">{cafe?.name || 'QuickServe Cafe'}</h2>
+                <p className="text-[10px] text-slate-500">Digital Tax Invoice & Receipt</p>
+              </div>
+              <button onClick={() => setShowBillModal(null)} className="text-slate-400 hover:text-slate-700 print:hidden">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="text-xs space-y-1 text-slate-600">
+              <div className="flex justify-between">
+                <span>Date: {new Date().toLocaleDateString('en-IN')}</span>
+                <span className="font-bold">Table #{tableNo}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Payment: {showBillModal.payment_mode?.toUpperCase()}</span>
+                <span className="font-mono">Ref #{showBillModal.id.slice(0, 8)}</span>
+              </div>
+            </div>
+
+            <div className="border-t border-b divide-y py-2 text-xs">
+              {showBillModal.order_items?.map((it, idx) => (
+                <div key={idx} className="py-1.5 flex justify-between font-medium">
+                  <span>{it.name || it.menu_items?.name || 'Item'} x{it.quantity}</span>
+                  <span className="font-bold">₹{(it.price || 0) * it.quantity}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-between items-center text-sm font-black pt-1">
+              <span>Grand Total:</span>
+              <span className="text-orange-600">₹{showBillModal.total_amount}</span>
+            </div>
+
+            <div className="space-y-2 pt-2 print:hidden">
+              <button
+                onClick={() => window.print()}
+                className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition"
+              >
+                <Download className="w-4 h-4" /> Print / Save PDF Bill
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* CALL WAITER MODAL */}
       {showAssistanceModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -708,15 +841,14 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                       ))}
                     </div>
 
-                    {ord.special_instructions && (
-                      <p className="text-[11px] text-amber-400 bg-amber-500/10 p-1.5 rounded border border-amber-500/20">
-                        Note: {ord.special_instructions}
-                      </p>
-                    )}
-
                     <div className="flex justify-between items-center pt-2 border-t border-slate-800 text-xs">
                       <span className="font-bold">Total: ₹{ord.total_amount}</span>
-                      <span className="text-[10px] font-mono text-emerald-400">{ord.payment_mode?.toUpperCase() || 'CASH'}</span>
+                      <button
+                        onClick={() => setShowBillModal(ord)}
+                        className="text-[10px] bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg text-orange-400 font-bold flex items-center gap-1 border border-slate-700 transition"
+                      >
+                        <FileText className="w-3 h-3" /> Digital Bill
+                      </button>
                     </div>
                   </div>
                 ))}
