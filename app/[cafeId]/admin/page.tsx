@@ -257,7 +257,7 @@ export default function MultiTenantAdminDashboard() {
         localStorage.setItem(`qs_admin_session_${cafe.id}`, 'unlocked');
         setPinInput('');
       } else {
-        setPinError('Invalid Admin PIN! Please enter the correct passcode.');
+        setPinError('Invalid Admin Passcode! Please enter the correct PIN.');
       }
     } else if (activeTab === 'kitchen') {
       if (pinInput === expectedKitchenPin || pinInput === expectedAdminPin) {
@@ -265,7 +265,7 @@ export default function MultiTenantAdminDashboard() {
         localStorage.setItem(`qs_kitchen_session_${cafe.id}`, 'unlocked');
         setPinInput('');
       } else {
-        setPinError('Invalid Kitchen PIN! Please enter the correct passcode.');
+        setPinError('Invalid Kitchen Passcode! Please enter the correct PIN.');
       }
     }
   };
@@ -308,7 +308,7 @@ export default function MultiTenantAdminDashboard() {
       });
 
       if (error) throw error;
-      alert('Dish Added Successfully!');
+      alert('New dish added successfully!');
       setDishName('');
       setDishPrice('');
       setDishDesc('');
@@ -322,7 +322,7 @@ export default function MultiTenantAdminDashboard() {
 
   const exportAuditCSV = () => {
     if (orders.length === 0) {
-      alert('No orders available to export.');
+      alert('No order history available to export.');
       return;
     }
 
@@ -372,7 +372,7 @@ export default function MultiTenantAdminDashboard() {
         <body>
           <div class="card">
             <h1>${cafe?.name}</h1>
-            <p>Scan to View Menu & Order</p>
+            <p>Scan to View Menu & Place Order</p>
             <div class="qr-box">
               ${printContent.innerHTML}
             </div>
@@ -407,7 +407,7 @@ export default function MultiTenantAdminDashboard() {
   if (!cafe) {
     return (
       <div className="min-h-screen bg-[#0A0D14] text-white flex items-center justify-center">
-        <p className="text-red-500 font-bold">Cafe records not found!</p>
+        <p className="text-red-500 font-bold">Cafe record not found!</p>
       </div>
     );
   }
