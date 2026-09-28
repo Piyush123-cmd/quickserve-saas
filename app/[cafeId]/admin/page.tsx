@@ -118,7 +118,6 @@ export default function MultiTenantAdminDashboard() {
       }
       setCafe(cafeData);
 
-      // Check existing session locks in localStorage
       const storedAdminSession = localStorage.getItem(`qs_admin_session_${cafeData.id}`);
       const storedKitchenSession = localStorage.getItem(`qs_kitchen_session_${cafeData.id}`);
       
@@ -372,7 +371,7 @@ export default function MultiTenantAdminDashboard() {
         <body>
           <div class="card">
             <h1>${cafe?.name}</h1>
-            <p>Scan to View Menu & Place Order</p>
+            <p>Scan to View Menu & Order</p>
             <div class="qr-box">
               ${printContent.innerHTML}
             </div>
@@ -445,13 +444,14 @@ export default function MultiTenantAdminDashboard() {
   });
 
   const grossRevenue = filteredOrders.reduce((sum, o) => sum + o.total_amount, 0);
-  const pendingOrders = orders.filter((o) => o.status === 'pending').length;
+  const pendingOrders = orders.filter((o) => o.status === 'pending');
+  const cookingOrders = orders.filter((o) => o.status === 'preparing');
 
   const getBaseUrl = () => {
     if (typeof window !== 'undefined') {
       return window.location.origin;
     }
-    return 'https://quickserve-saas.vercel.app';
+    return 'https://quickserve-saas-v2.vercel.app';
   };
 
   const qrUrl = `${getBaseUrl()}/${cafe.slug}?table=${selectedTable}`;
@@ -487,7 +487,7 @@ export default function MultiTenantAdminDashboard() {
               activeTab === 'kitchen' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'
             }`}
           >
-            🍳 Kitchen ({pendingOrders}) {!isKitchenUnlocked && '🔒'}
+            🍳 Kitchen ({pendingOrders.length + cookingOrders.length}) {!isKitchenUnlocked && '🔒'}
           </button>
           <button
             onClick={() => { setActiveTab('qrcodes'); setPinError(''); }}
@@ -585,9 +585,9 @@ export default function MultiTenantAdminDashboard() {
                   </div>
 
                   <div className="bg-[#121824] border border-gray-800 rounded-2xl p-5">
-                    <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Pending Kitchen Orders</p>
-                    <h3 className="text-3xl font-extrabold text-amber-400">{pendingOrders}</h3>
-                    <p className="text-xs text-gray-500 mt-2">Active live requests</p>
+                    <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Active Kitchen Orders</p>
+                    <h3 className="text-3xl font-extrabold text-amber-400">{pendingOrders.length + cookingOrders.length}</h3>
+                    <p className="text-xs text-gray-500 mt-2">{pendingOrders.length} Pending | {cookingOrders.length} Cooking</p>
                   </div>
                 </div>
 
@@ -630,9 +630,13 @@ export default function MultiTenantAdminDashboard() {
                                 <td className="p-3 font-bold text-white">₹{o.total_amount}</td>
                                 <td className="p-3">
                                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                    o.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                    o.status === 'completed' 
+                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                      : o.status === 'preparing'
+                                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                      : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
                                   }`}>
-                                    {o.status}
+                                    {o.status === 'completed' ? 'Ready 🍽️' : o.status === 'preparing' ? 'Cooking 🍳' : 'Accepted 🕒'}
                                   </span>
                                 </td>
                               </tr>
@@ -727,20 +731,33 @@ export default function MultiTenantAdminDashboard() {
                 )}
 
                 <h2 className="text-lg font-bold text-white">Live Kitchen Display System (KDS)</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {orders.filter(o => o.status !== 'completed').length === 0 ? (
-                    <div className="col-span-full bg-[#121824] border border-gray-800 rounded-2xl p-8 text-center text-gray-500">
-                      No active pending kitchen orders! ☕
+
+                {/* 2-COLUMN PROGRESSIVE KITCHEN WORKFLOW */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* COLUMN 1: STEP 1 - INCOMING ACCEPTED ORDERS */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center bg-[#121824] p-3 rounded-xl border border-gray-800">
+                      <h3 className="text-xs font-extrabold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
+                        🕒 Step 1: Accepted Orders ({pendingOrders.length})
+                      </h3>
+                      <span className="text-[10px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-full border border-orange-500/20 font-bold">
+                        Needs Cooking
+                      </span>
                     </div>
-                  ) : (
-                    orders.filter(o => o.status !== 'completed').map((order) => (
-                      <div key={order.id} className="bg-[#121824] border border-gray-800 rounded-2xl p-5 flex flex-col justify-between">
-                        <div>
-                          <div className="flex justify-between items-center mb-3">
+                    
+                    {pendingOrders.length === 0 ? (
+                      <div className="bg-[#121824] border border-gray-800 rounded-2xl p-6 text-center text-xs text-gray-500">
+                        No new orders waiting for kitchen ☕
+                      </div>
+                    ) : (
+                      pendingOrders.map((order) => (
+                        <div key={order.id} className="bg-[#121824] border border-orange-500/40 rounded-2xl p-4 space-y-3 shadow-lg">
+                          <div className="flex justify-between items-center">
                             <span className="text-lg font-black text-orange-400">Table #{order.table_number}</span>
                             <span className="text-xs text-gray-400 font-medium">{order.customer_name || 'Guest'}</span>
                           </div>
-                          <div className="space-y-1 mb-4 border-t border-b border-gray-800 py-2">
+
+                          <div className="space-y-1 border-t border-b border-gray-800 py-2">
                             {order.order_items?.map((item) => (
                               <div key={item.id} className="flex justify-between text-xs">
                                 <span className="text-gray-200">{item.menu_items?.name}</span>
@@ -748,21 +765,72 @@ export default function MultiTenantAdminDashboard() {
                               </div>
                             ))}
                           </div>
+
                           {order.notes && (
-                            <p className="text-[11px] text-amber-400/90 bg-amber-500/10 p-2 rounded-lg mb-4">
+                            <p className="text-[11px] text-amber-400/90 bg-amber-500/10 p-2 rounded-lg">
                               Note: {order.notes}
                             </p>
                           )}
+
+                          <button
+                            onClick={() => updateOrderStatus(order.id, 'preparing')}
+                            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-1.5"
+                          >
+                            🍳 Start Cooking →
+                          </button>
                         </div>
-                        <button
-                          onClick={() => updateOrderStatus(order.id, 'completed')}
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition"
-                        >
-                          ✅ Complete Order
-                        </button>
+                      ))
+                    )}
+                  </div>
+
+                  {/* COLUMN 2: STEP 2 - CURRENTLY COOKING */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center bg-[#121824] p-3 rounded-xl border border-gray-800">
+                      <h3 className="text-xs font-extrabold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                        🍳 Step 2: Currently Cooking ({cookingOrders.length})
+                      </h3>
+                      <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/20 font-bold animate-pulse">
+                        In Progress
+                      </span>
+                    </div>
+
+                    {cookingOrders.length === 0 ? (
+                      <div className="bg-[#121824] border border-gray-800 rounded-2xl p-6 text-center text-xs text-gray-500">
+                        No dishes currently cooking
                       </div>
-                    ))
-                  )}
+                    ) : (
+                      cookingOrders.map((order) => (
+                        <div key={order.id} className="bg-[#121824] border border-amber-500/40 rounded-2xl p-4 space-y-3 shadow-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="text-lg font-black text-amber-400">Table #{order.table_number}</span>
+                            <span className="text-xs text-gray-400 font-medium">{order.customer_name || 'Guest'}</span>
+                          </div>
+
+                          <div className="space-y-1 border-t border-b border-gray-800 py-2">
+                            {order.order_items?.map((item) => (
+                              <div key={item.id} className="flex justify-between text-xs">
+                                <span className="text-gray-200">{item.menu_items?.name}</span>
+                                <span className="font-bold text-amber-400">x{item.quantity}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {order.notes && (
+                            <p className="text-[11px] text-amber-400/90 bg-amber-500/10 p-2 rounded-lg">
+                              Note: {order.notes}
+                            </p>
+                          )}
+
+                          <button
+                            onClick={() => updateOrderStatus(order.id, 'completed')}
+                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-1.5"
+                          >
+                            🍽️ Mark Order Ready & Served ✓
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             )}
