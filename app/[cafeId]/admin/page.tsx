@@ -40,6 +40,16 @@ interface ServiceRequest {
   created_at: string;
 }
 
+interface MenuItem {
+  id: string;
+  name: string;
+  price: number;
+  description: string | null;
+  image_url: string | null;
+  is_veg: boolean;
+  is_available: boolean;
+}
+
 interface Cafe {
   id: string;
   name: string;
@@ -82,6 +92,7 @@ export default function MultiTenantAdminDashboard() {
   
   const [orders, setOrders] = useState<Order[]>([]);
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Authentication Lock States
@@ -97,6 +108,9 @@ export default function MultiTenantAdminDashboard() {
   const [dishImg, setDishImg] = useState('');
   const [isVeg, setIsVeg] = useState(true);
   const [addingDish, setAddingDish] = useState(false);
+
+  // Dish Edit Modal State
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
 
   // QR Code Generator State
   const [selectedTable, setSelectedTable] = useState<string>('1');
@@ -138,6 +152,14 @@ export default function MultiTenantAdminDashboard() {
 
       if (ordersErr) console.error('Orders Error:', ordersErr);
       else setOrders((ordersData as any) || []);
+
+      const { data: menuData } = await supabase
+        .from('menu_items')
+        .select('*')
+        .eq('cafe_id', cafeData.id)
+        .order('created_at', { ascending: false });
+
+      if (menuData) setMenuItems(menuData);
 
       const { data: reqData } = await supabase
         .from('service_requests')
@@ -312,10 +334,51 @@ export default function MultiTenantAdminDashboard() {
       setDishPrice('');
       setDishDesc('');
       setDishImg('');
+      loadData();
     } catch (err: any) {
       alert('Failed to add dish: ' + err.message);
     } finally {
       setAddingDish(false);
+    }
+  };
+
+  const toggleAvailability = async (item: MenuItem) => {
+    await supabase
+      .from('menu_items')
+      .update({ is_available: !item.is_available })
+      .eq('id', item.id);
+    loadData();
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!confirm('Are you sure you want to delete this menu dish?')) return;
+    await supabase.from('menu_items').delete().eq('id', itemId);
+    loadData();
+  };
+
+  const handleUpdateItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+
+    try {
+      const { error } = await supabase
+        .from('menu_items')
+        .update({
+          name: editingItem.name,
+          price: editingItem.price,
+          description: editingItem.description,
+          image_url: editingItem.image_url,
+          is_veg: editingItem.is_veg,
+          is_available: editingItem.is_available,
+        })
+        .eq('id', editingItem.id);
+
+      if (error) throw error;
+      alert('Dish updated successfully!');
+      setEditingItem(null);
+      loadData();
+    } catch (err: any) {
+      alert('Failed to update dish: ' + err.message);
     }
   };
 
@@ -592,6 +655,7 @@ export default function MultiTenantAdminDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* AUDIT LOG TABLE */}
                   <div className="lg:col-span-2 bg-[#121824] border border-gray-800 rounded-2xl p-5">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-base font-bold text-white">Orders Audit Log ({filteredOrders.length})</h3>
@@ -647,57 +711,112 @@ export default function MultiTenantAdminDashboard() {
                     </div>
                   </div>
 
-                  <div className="bg-[#121824] border border-gray-800 rounded-2xl p-5">
-                    <h3 className="text-base font-bold text-white mb-4">Add New Menu Dish</h3>
-                    <form onSubmit={handleAddDish} className="space-y-3">
-                      <input
-                        type="text"
-                        placeholder="Dish Name *"
-                        required
-                        value={dishName}
-                        onChange={(e) => setDishName(e.target.value)}
-                        className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Price (₹) *"
-                        required
-                        value={dishPrice}
-                        onChange={(e) => setDishPrice(e.target.value)}
-                        className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Description (Optional)"
-                        value={dishDesc}
-                        onChange={(e) => setDishDesc(e.target.value)}
-                        className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Image URL (Optional)"
-                        value={dishImg}
-                        onChange={(e) => setDishImg(e.target.value)}
-                        className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
-                      />
-                      <div className="flex items-center gap-2 pt-1">
+                  {/* ADD & MANAGE MENU DISHES */}
+                  <div className="space-y-6">
+                    {/* ADD NEW DISH FORM */}
+                    <div className="bg-[#121824] border border-gray-800 rounded-2xl p-5">
+                      <h3 className="text-base font-bold text-white mb-4">+ Add New Menu Dish</h3>
+                      <form onSubmit={handleAddDish} className="space-y-3">
                         <input
-                          type="checkbox"
-                          id="isVegCheck"
-                          checked={isVeg}
-                          onChange={(e) => setIsVeg(e.target.checked)}
-                          className="rounded accent-orange-500"
+                          type="text"
+                          placeholder="Dish Name *"
+                          required
+                          value={dishName}
+                          onChange={(e) => setDishName(e.target.value)}
+                          className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
                         />
-                        <label htmlFor="isVegCheck" className="text-xs text-gray-300">Is Vegetarian Dish?</label>
+                        <input
+                          type="number"
+                          placeholder="Price (₹) *"
+                          required
+                          value={dishPrice}
+                          onChange={(e) => setDishPrice(e.target.value)}
+                          className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Description (Optional)"
+                          value={dishDesc}
+                          onChange={(e) => setDishDesc(e.target.value)}
+                          className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Image URL (Optional)"
+                          value={dishImg}
+                          onChange={(e) => setDishImg(e.target.value)}
+                          className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                        />
+                        <div className="flex items-center gap-2 pt-1">
+                          <input
+                            type="checkbox"
+                            id="isVegCheck"
+                            checked={isVeg}
+                            onChange={(e) => setIsVeg(e.target.checked)}
+                            className="rounded accent-orange-500"
+                          />
+                          <label htmlFor="isVegCheck" className="text-xs text-gray-300">Is Vegetarian Dish?</label>
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={addingDish}
+                          className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition disabled:opacity-50 mt-2"
+                        >
+                          {addingDish ? 'Adding Dish...' : '+ Add Dish To Menu'}
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* MANAGE EXISTING DISHES LIST */}
+                    <div className="bg-[#121824] border border-gray-800 rounded-2xl p-5 space-y-3">
+                      <h3 className="text-base font-bold text-white">Menu Items Manager ({menuItems.length})</h3>
+                      <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                        {menuItems.length === 0 ? (
+                          <p className="text-xs text-gray-500">No menu items added yet.</p>
+                        ) : (
+                          menuItems.map((item) => (
+                            <div key={item.id} className="bg-[#161F2E] border border-gray-800 p-3 rounded-xl flex items-center justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`w-2 h-2 rounded-full ${item.is_veg ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                  <span className="text-xs font-bold text-white truncate">{item.name}</span>
+                                </div>
+                                <span className="text-xs text-orange-400 font-bold">₹{item.price}</span>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  onClick={() => toggleAvailability(item)}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition ${
+                                    item.is_available 
+                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                                      : 'bg-red-500/10 text-red-400 border-red-500/30'
+                                  }`}
+                                  title="Toggle Stock Availability"
+                                >
+                                  {item.is_available ? 'In Stock ✓' : 'Out Stock ✕'}
+                                </button>
+
+                                <button
+                                  onClick={() => setEditingItem(item)}
+                                  className="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 rounded-lg text-[10px] font-bold transition"
+                                >
+                                  ✏️ Edit
+                                </button>
+
+                                <button
+                                  onClick={() => handleDeleteItem(item.id)}
+                                  className="p-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-[10px] transition"
+                                  title="Delete Dish"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
-                      <button
-                        type="submit"
-                        disabled={addingDish}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition disabled:opacity-50 mt-2"
-                      >
-                        {addingDish ? 'Adding Dish...' : '+ Add Dish To Menu'}
-                      </button>
-                    </form>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -939,6 +1058,100 @@ export default function MultiTenantAdminDashboard() {
           </>
         )}
       </main>
+
+      {/* EDIT DISH MODAL */}
+      {editingItem && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#121824] border border-gray-800 w-full max-w-md rounded-2xl p-6 space-y-4">
+            <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+              <h3 className="font-bold text-sm text-white">Edit Menu Item</h3>
+              <button onClick={() => setEditingItem(null)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+
+            <form onSubmit={handleUpdateItem} className="space-y-3">
+              <div>
+                <label className="text-[11px] text-gray-400 block mb-1">Dish Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editingItem.name}
+                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                  className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] text-gray-400 block mb-1">Price (₹)</label>
+                <input
+                  type="number"
+                  required
+                  value={editingItem.price}
+                  onChange={(e) => setEditingItem({ ...editingItem, price: parseFloat(e.target.value) || 0 })}
+                  className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] text-gray-400 block mb-1">Description</label>
+                <input
+                  type="text"
+                  value={editingItem.description || ''}
+                  onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
+                  className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] text-gray-400 block mb-1">Image URL</label>
+                <input
+                  type="text"
+                  value={editingItem.image_url || ''}
+                  onChange={(e) => setEditingItem({ ...editingItem, image_url: e.target.value })}
+                  className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                />
+              </div>
+
+              <div className="flex items-center gap-4 pt-1">
+                <label className="flex items-center gap-2 text-xs text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={editingItem.is_veg}
+                    onChange={(e) => setEditingItem({ ...editingItem, is_veg: e.target.checked })}
+                    className="rounded accent-orange-500"
+                  />
+                  Vegetarian
+                </label>
+
+                <label className="flex items-center gap-2 text-xs text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={editingItem.is_available}
+                    onChange={(e) => setEditingItem({ ...editingItem, is_available: e.target.checked })}
+                    className="rounded accent-orange-500"
+                  />
+                  In Stock
+                </label>
+              </div>
+
+              <div className="flex gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(null)}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-2.5 rounded-xl text-xs transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
