@@ -232,7 +232,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
     if (cart.length === 0 || submitting || !cafe) return;
 
     if (selectedPaymentMode === 'upi' && !upiPaymentConfirmed) {
-      alert('⚠️ Kripya UPI scan karke "I Have Completed Payment via UPI" checkbox tick karein!');
+      alert('⚠️ Please scan UPI QR and check "I Have Completed Payment via UPI" checkbox.');
       return;
     }
 
@@ -246,6 +246,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           table_no: tableNo,
           table_number: parseInt(tableNo, 10) || 1,
           customer_name: customerName || (customerPhone ? `Guest (${customerPhone})` : 'Guest'),
+          customer_phone: customerPhone || null,
           total_amount: totalAmount,
           payment_mode: selectedPaymentMode,
           payment_status: selectedPaymentMode === 'upi' ? 'pending' : 'pending',
@@ -344,7 +345,6 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
     );
   }
 
-  // PROFESSIONAL SUBSCRIPTION EXPIRED SCREEN (Handles both is_active and is_subscription_active)
   const isSubscriptionActive = cafe?.is_active ?? cafe?.is_subscription_active ?? true;
 
   if (cafe && isSubscriptionActive === false) {
@@ -424,7 +424,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
       </header>
 
       <main className="max-w-md mx-auto p-4 space-y-4">
-        {/* LIVE ORDER TRACKER BANNER */}
+        {/* REALTIME DYNAMIC KITCHEN TRACKER BANNER */}
         {activeMyOrder && (
           <div
             onClick={() => setShowMyOrdersModal(true)}
@@ -432,20 +432,37 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
               isDarkMode ? 'bg-orange-500/10 border-orange-500/40 text-white' : 'bg-white border-orange-300 text-slate-900 shadow-md'
             }`}
           >
-            <div className="flex justify-between items-center mb-1.5">
-              <span className="text-xs font-bold text-orange-500 flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5 animate-pulse text-orange-500" /> Live Kitchen Tracker
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs font-black text-orange-500 flex items-center gap-1">
+                <Flame className="w-4 h-4 animate-pulse text-orange-500" /> Live Kitchen Order Status
               </span>
               <span className={`text-[10px] underline ${theme.subText}`}>View Ticket</span>
             </div>
-            <div className="grid grid-cols-3 gap-1 text-center">
-              <div className={`p-1.5 rounded-lg text-[10px] font-bold border ${activeMyOrder.status === 'pending' ? 'bg-orange-500 text-white border-orange-400 animate-pulse' : 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30'}`}>
-                1. Received 🕒
+            
+            <div className="grid grid-cols-3 gap-1.5 text-center">
+              <div className={`p-2 rounded-xl text-[11px] font-bold border transition ${
+                activeMyOrder.status === 'pending' 
+                  ? 'bg-orange-500 text-white border-orange-400 animate-pulse shadow-md' 
+                  : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+              }`}>
+                1. Accepted 🕒
               </div>
-              <div className={`p-1.5 rounded-lg text-[10px] font-bold border ${activeMyOrder.status === 'preparing' ? 'bg-orange-500 text-white border-orange-400 animate-pulse' : 'bg-slate-800/20 text-slate-400 border-slate-700'}`}>
+              
+              <div className={`p-2 rounded-xl text-[11px] font-bold border transition ${
+                activeMyOrder.status === 'preparing' 
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 animate-pulse shadow-md' 
+                  : activeMyOrder.status === 'completed'
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                  : 'bg-slate-800/40 text-slate-500 border-slate-800'
+              }`}>
                 2. Cooking 🍳
               </div>
-              <div className="p-1.5 rounded-lg text-[10px] font-bold border bg-slate-800/20 text-slate-400 border-slate-700">
+
+              <div className={`p-2 rounded-xl text-[11px] font-bold border transition ${
+                activeMyOrder.status === 'completed'
+                  ? 'bg-emerald-500 text-white border-emerald-400 shadow-md animate-bounce'
+                  : 'bg-slate-800/40 text-slate-500 border-slate-800'
+              }`}>
                 3. Ready 🍽️
               </div>
             </div>
@@ -668,7 +685,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
         </div>
       )}
 
-      {/* POST ORDER SUCCESS & BILL DOWNLOAD MODAL */}
+      {/* POST ORDER SUCCESS MODAL */}
       {placedOrderDetails && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-orange-500/40 w-full max-w-sm rounded-3xl p-6 text-center space-y-4 text-white shadow-2xl">
@@ -676,7 +693,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             
             <div>
               <h2 className="text-xl font-black text-orange-500">Order Placed Successfully! 🍳</h2>
-              <p className="text-xs text-slate-300 mt-1">Table #{tableNo} • Chef is preparing your dishes.</p>
+              <p className="text-xs text-slate-300 mt-1">Table #{tableNo} • Order status: Accepted 🕒</p>
             </div>
 
             <div className="p-3.5 bg-slate-950 border border-slate-800 rounded-2xl text-left space-y-1.5 text-xs">
@@ -705,7 +722,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                 onClick={() => setPlacedOrderDetails(null)}
                 className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-2xl text-xs transition"
               >
-                Back to Menu
+                Back to Menu & Track Status
               </button>
             </div>
           </div>
@@ -830,8 +847,14 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                   <div key={ord.id} className="border border-slate-800 rounded-xl p-3.5 space-y-2 bg-slate-950 text-white">
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold">Order #{myOrders.length - idx}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${ord.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-orange-500/10 text-orange-400 border-orange-500/30 animate-pulse'}`}>
-                        {ord.status === 'completed' ? 'Served' : ord.status === 'preparing' ? 'Cooking' : 'Received'}
+                      <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase border ${
+                        ord.status === 'completed' 
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                          : ord.status === 'preparing'
+                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse'
+                          : 'bg-orange-500/10 text-orange-400 border-orange-500/30'
+                      }`}>
+                        {ord.status === 'completed' ? 'Ready 🍽️' : ord.status === 'preparing' ? 'Cooking 🍳' : 'Accepted 🕒'}
                       </span>
                     </div>
 
