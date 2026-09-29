@@ -102,7 +102,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // UI States
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'veg' | 'non-veg'>('all');
 
@@ -324,22 +324,22 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const theme = {
     header: isDarkMode 
       ? 'bg-slate-900/90 border-slate-800 text-white' 
-      : 'bg-white/95 border-orange-200 text-slate-900 shadow-sm',
+      : 'bg-[#FEEEEC]/95 border-[#FAD7D2] text-slate-900 shadow-sm',
     card: isDarkMode 
       ? 'bg-slate-900/80 border-slate-800 text-white' 
-      : 'bg-white border-orange-200/80 text-slate-900 shadow-md',
+      : 'bg-white border-[#FAD7D2] text-slate-900 shadow-md',
     panel: isDarkMode 
       ? 'bg-slate-900 border-slate-800 text-white' 
-      : 'bg-white border-orange-300 text-slate-900 shadow-xl',
+      : 'bg-white border-[#FAD7D2] text-slate-900 shadow-xl',
     input: isDarkMode 
       ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' 
-      : 'bg-orange-50/60 border-orange-300 text-slate-900 placeholder-slate-400',
+      : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-900 placeholder-slate-400',
     subText: isDarkMode ? 'text-slate-400' : 'text-slate-600',
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#FEEEEC] text-slate-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-orange-500"></div>
       </div>
     );
@@ -349,14 +349,14 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
   if (cafe && isSubscriptionActive === false) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 text-center">
-        <div className="max-w-md bg-slate-900 border border-red-500/30 rounded-3xl p-8 space-y-4 shadow-2xl">
+      <div className="min-h-screen bg-[#FEEEEC] text-slate-900 flex items-center justify-center p-6 text-center">
+        <div className="max-w-md bg-white border border-red-200 rounded-3xl p-8 space-y-4 shadow-2xl">
           <AlertOctagon className="w-16 h-16 text-red-500 mx-auto animate-pulse" />
-          <h2 className="text-xl font-black text-red-400">Subscription Plan Expired 🚫</h2>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            The QuickServe SaaS active subscription for <strong className="text-white">{cafe.name}</strong> is currently paused or expired.
+          <h2 className="text-xl font-black text-red-500">Subscription Plan Expired 🚫</h2>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            The QuickServe SaaS active subscription for <strong className="text-slate-900">{cafe.name}</strong> is currently paused or expired.
           </p>
-          <div className="p-3 bg-slate-800/80 border border-slate-700 rounded-2xl text-[11px] text-slate-400">
+          <div className="p-3 bg-red-50 border border-red-100 rounded-2xl text-[11px] text-slate-500">
             To restore live digital menu & QR ordering services, please contact QuickServe Enterprise Support.
           </div>
           <a
@@ -372,8 +372,8 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
   if (errorMsg) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 text-center">
-        <p className="text-red-400 font-bold">{errorMsg}</p>
+      <div className="min-h-screen bg-[#FEEEEC] text-slate-900 flex items-center justify-center p-6 text-center">
+        <p className="text-red-500 font-bold">{errorMsg}</p>
       </div>
     );
   }
@@ -381,7 +381,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   return (
     <div 
       className="min-h-screen font-sans pb-32 transition-colors duration-200"
-      style={{ backgroundColor: isDarkMode ? '#020617' : '#FFFAF5' }}
+      style={{ backgroundColor: isDarkMode ? '#020617' : '#FEEEEC' }}
     >
       {/* HEADER */}
       <header className={`sticky top-0 z-30 border-b backdrop-blur-md p-3.5 ${theme.header}`}>
@@ -414,7 +414,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
             <button
               onClick={toggleTheme}
-              className={`p-1.5 rounded-xl border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-400' : 'bg-orange-100 border-orange-300 text-orange-700'}`}
+              className={`p-1.5 rounded-xl border transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-amber-400' : 'bg-white border-[#FAD7D2] text-orange-600 shadow-sm'}`}
               title="Toggle Theme"
             >
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -443,7 +443,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
               <div className={`p-2 rounded-xl text-[11px] font-bold border transition ${
                 activeMyOrder.status === 'pending' 
                   ? 'bg-orange-500 text-white border-orange-400 animate-pulse shadow-md' 
-                  : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                  : 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30'
               }`}>
                 1. Accepted 🕒
               </div>
@@ -452,8 +452,8 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                 activeMyOrder.status === 'preparing' 
                   ? 'bg-amber-500 text-slate-950 border-amber-400 animate-pulse shadow-md' 
                   : activeMyOrder.status === 'completed'
-                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                  : 'bg-slate-800/40 text-slate-500 border-slate-800'
+                  ? 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30'
+                  : 'bg-slate-100 text-slate-400 border-slate-200'
               }`}>
                 2. Cooking 🍳
               </div>
@@ -461,7 +461,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
               <div className={`p-2 rounded-xl text-[11px] font-bold border transition ${
                 activeMyOrder.status === 'completed'
                   ? 'bg-emerald-500 text-white border-emerald-400 shadow-md animate-bounce'
-                  : 'bg-slate-800/40 text-slate-500 border-slate-800'
+                  : 'bg-slate-100 text-slate-400 border-slate-200'
               }`}>
                 3. Ready 🍽️
               </div>
@@ -485,19 +485,19 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           <div className="flex gap-2">
             <button
               onClick={() => setFilterType('all')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${filterType === 'all' ? 'bg-orange-500 text-white' : 'bg-orange-500/10 text-orange-600'}`}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${filterType === 'all' ? 'bg-orange-500 text-white shadow' : 'bg-orange-500/10 text-orange-600'}`}
             >
               All ({menuItems.length})
             </button>
             <button
               onClick={() => setFilterType('veg')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${filterType === 'veg' ? 'bg-emerald-500 text-white' : 'bg-emerald-500/10 text-emerald-600'}`}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${filterType === 'veg' ? 'bg-emerald-500 text-white shadow' : 'bg-emerald-500/10 text-emerald-600'}`}
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500" /> Veg
             </button>
             <button
               onClick={() => setFilterType('non-veg')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${filterType === 'non-veg' ? 'bg-red-500 text-white' : 'bg-red-500/10 text-red-600'}`}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${filterType === 'non-veg' ? 'bg-red-500 text-white shadow' : 'bg-red-500/10 text-red-600'}`}
             >
               <span className="w-2 h-2 rounded-full bg-red-500" /> Non-Veg
             </button>
@@ -563,7 +563,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
       {/* BOTTOM CART BAR */}
       {cart.length > 0 && (
-        <div className={`fixed bottom-0 left-0 right-0 p-4 border-t z-40 backdrop-blur-lg ${isDarkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-orange-300 shadow-2xl'}`}>
+        <div className={`fixed bottom-0 left-0 right-0 p-4 border-t z-40 backdrop-blur-lg ${isDarkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-orange-200 shadow-2xl'}`}>
           <div className="max-w-md mx-auto">
             <button
               onClick={() => setShowCheckoutModal(true)}
@@ -623,7 +623,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                   setSelectedPaymentMode('cash');
                   setUpiPaymentConfirmed(false);
                 }}
-                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-xs font-semibold transition ${selectedPaymentMode === 'cash' ? 'border-orange-500 bg-orange-500/10 text-orange-500' : 'border-slate-700 bg-slate-800 text-slate-400'}`}
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-xs font-semibold transition ${selectedPaymentMode === 'cash' ? 'border-orange-500 bg-orange-500/10 text-orange-600' : 'border-slate-300 bg-slate-50 text-slate-500'}`}
               >
                 <Banknote className="w-5 h-5" />
                 <span>Pay Counter (Cash)</span>
@@ -632,7 +632,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
               <button
                 type="button"
                 onClick={() => setSelectedPaymentMode('upi')}
-                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-xs font-semibold transition ${selectedPaymentMode === 'upi' ? 'border-orange-500 bg-orange-500/10 text-orange-500' : 'border-slate-700 bg-slate-800 text-slate-400'}`}
+                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-xs font-semibold transition ${selectedPaymentMode === 'upi' ? 'border-orange-500 bg-orange-500/10 text-orange-600' : 'border-slate-300 bg-slate-50 text-slate-500'}`}
               >
                 <CreditCard className="w-5 h-5" />
                 <span>Pay via UPI QR</span>
@@ -801,21 +801,21 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
               <div className="grid grid-cols-1 gap-2 pt-1">
                 <button
                   onClick={() => handleSendAssistance('Call Waiter')}
-                  className="p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold bg-slate-800 hover:bg-orange-500/20 border-slate-700 text-white transition"
+                  className={`p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-800'}`}
                 >
                   <UserCheck className="w-4 h-4 text-orange-500" />
                   <span>Call Waiter to Table</span>
                 </button>
                 <button
                   onClick={() => handleSendAssistance('Bring Drinking Water')}
-                  className="p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold bg-slate-800 hover:bg-blue-500/20 border-slate-700 text-white transition"
+                  className={`p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-800'}`}
                 >
                   <Droplets className="w-4 h-4 text-blue-500" />
                   <span>Need Drinking Water</span>
                 </button>
                 <button
                   onClick={() => handleSendAssistance('Bring Table Bill')}
-                  className="p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold bg-slate-800 hover:bg-emerald-500/20 border-slate-700 text-white transition"
+                  className={`p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-800'}`}
                 >
                   <Receipt className="w-4 h-4 text-emerald-500" />
                   <span>Request Final Bill</span>
@@ -844,34 +844,34 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             ) : (
               <div className="space-y-3">
                 {myOrders.map((ord, idx) => (
-                  <div key={ord.id} className="border border-slate-800 rounded-xl p-3.5 space-y-2 bg-slate-950 text-white">
+                  <div key={ord.id} className={`border rounded-xl p-3.5 space-y-2 ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-900'}`}>
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold">Order #{myOrders.length - idx}</span>
                       <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase border ${
                         ord.status === 'completed' 
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                          ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' 
                           : ord.status === 'preparing'
-                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 animate-pulse'
-                          : 'bg-orange-500/10 text-orange-400 border-orange-500/30'
+                          ? 'bg-amber-500/10 text-amber-600 border-amber-500/30 animate-pulse'
+                          : 'bg-orange-500/10 text-orange-600 border-orange-500/30'
                       }`}>
                         {ord.status === 'completed' ? 'Ready 🍽️' : ord.status === 'preparing' ? 'Cooking 🍳' : 'Accepted 🕒'}
                       </span>
                     </div>
 
-                    <div className="divide-y divide-slate-800 text-xs text-slate-300">
+                    <div className="divide-y text-xs text-slate-600">
                       {ord.order_items?.map((item) => (
                         <div key={item.id} className="py-1 flex justify-between">
                           <span>{item.name || item.menu_items?.name || 'Dish'}</span>
-                          <span className="font-bold text-orange-400">x{item.quantity}</span>
+                          <span className="font-bold text-orange-500">x{item.quantity}</span>
                         </div>
                       ))}
                     </div>
 
-                    <div className="flex justify-between items-center pt-2 border-t border-slate-800 text-xs">
+                    <div className="flex justify-between items-center pt-2 border-t text-xs">
                       <span className="font-bold">Total: ₹{ord.total_amount}</span>
                       <button
                         onClick={() => setShowBillModal(ord)}
-                        className="text-[10px] bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg text-orange-400 font-bold flex items-center gap-1 border border-slate-700 transition"
+                        className="text-[10px] bg-orange-500 text-white hover:bg-orange-600 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 shadow transition"
                       >
                         <FileText className="w-3 h-3" /> Digital Bill
                       </button>
@@ -890,7 +890,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 export default function CustomerMenuPage({ params }: { params: Promise<{ cafeId: string }> }) {
   const resolvedParams = use(params);
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-950 text-white flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-orange-500"></div></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#FEEEEC] text-slate-900 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-orange-500"></div></div>}>
       <MenuContent cafeSlug={resolvedParams.cafeId} />
     </Suspense>
   );

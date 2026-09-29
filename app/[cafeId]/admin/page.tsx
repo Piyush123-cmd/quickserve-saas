@@ -90,6 +90,9 @@ export default function MultiTenantAdminDashboard() {
   const [activeTab, setActiveTab] = useState<'admin' | 'kitchen' | 'menu' | 'qrcodes'>('admin');
   const [timeFilter, setTimeFilter] = useState<'today' | 'yesterday' | '7days' | 'all'>('today');
   
+  // Theme state
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -455,12 +458,21 @@ export default function MultiTenantAdminDashboard() {
     win.document.close();
   };
 
+  const theme = {
+    bg: isDarkMode ? 'bg-[#0A0D14] text-gray-100' : 'bg-[#FEEEEC] text-slate-900',
+    header: isDarkMode ? 'bg-[#121824] border-gray-800' : 'bg-white border-[#FAD7D2] shadow-sm',
+    card: isDarkMode ? 'bg-[#121824] border-gray-800' : 'bg-white border-[#FAD7D2] shadow-md text-slate-900',
+    innerCard: isDarkMode ? 'bg-[#161F2E] border-gray-800' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-900',
+    input: isDarkMode ? 'bg-[#161F2E] border-gray-800 text-white' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-900',
+    subText: isDarkMode ? 'text-gray-400' : 'text-slate-600',
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0A0D14] text-white flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center ${theme.bg}`}>
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-xs text-gray-400">Loading Dashboard...</p>
+          <p className="text-xs font-bold opacity-70">Loading Dashboard...</p>
         </div>
       </div>
     );
@@ -468,7 +480,7 @@ export default function MultiTenantAdminDashboard() {
 
   if (!cafe) {
     return (
-      <div className="min-h-screen bg-[#0A0D14] text-white flex items-center justify-center">
+      <div className={`min-h-screen flex items-center justify-center ${theme.bg}`}>
         <p className="text-red-500 font-bold">Cafe record not found!</p>
       </div>
     );
@@ -476,9 +488,9 @@ export default function MultiTenantAdminDashboard() {
 
   if (cafe.is_active === false) {
     return (
-      <div className="min-h-screen bg-[#0A0D14] text-white flex flex-col items-center justify-center p-6 text-center">
+      <div className={`min-h-screen flex flex-col items-center justify-center p-6 text-center ${theme.bg}`}>
         <h1 className="text-3xl font-extrabold text-red-500 mb-2">{cafe.name} - Subscription Expired 🚫</h1>
-        <p className="text-gray-400 text-sm max-w-md mb-6">
+        <p className="text-sm max-w-md mb-6 opacity-70">
           The QuickServe SaaS active subscription for this café is currently paused or expired. For continuous services, please contact QuickServe Support.
         </p>
       </div>
@@ -520,64 +532,79 @@ export default function MultiTenantAdminDashboard() {
   const qrUrl = `${getBaseUrl()}/${cafe.slug}?table=${selectedTable}`;
 
   return (
-    <div className="min-h-screen bg-[#0A0D14] text-gray-100 font-sans pb-12">
-      <header className="bg-[#121824] border-b border-gray-800 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+    <div className={`min-h-screen font-sans pb-12 transition-colors duration-200 ${theme.bg}`}>
+      <header className={`border-b px-6 py-4 flex flex-wrap items-center justify-between gap-4 ${theme.header}`}>
         <div>
           <h1 className="text-xl font-extrabold text-orange-500">{cafe.name}</h1>
-          <p className="text-xs text-gray-400">Master Owner Dashboard & Live KDS</p>
+          <p className={`text-xs ${theme.subText}`}>Master Owner Dashboard & Live KDS</p>
         </div>
 
-        <div className="flex items-center gap-2 bg-[#161F2E] p-1.5 rounded-xl border border-gray-800">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition ${
+              isDarkMode 
+                ? 'bg-slate-800 text-amber-400 border-slate-700' 
+                : 'bg-white text-orange-600 border-[#FAD7D2] shadow-sm'
+            }`}
+          >
+            {isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+          </button>
+
           <button
             onClick={playNotificationSound}
-            className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-orange-400 text-xs font-bold rounded-lg border border-gray-700 transition"
+            className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition ${
+              isDarkMode ? 'bg-gray-800 text-orange-400 border-gray-700' : 'bg-white text-orange-600 border-[#FAD7D2] shadow-sm'
+            }`}
             title="Test Kitchen Sound Chime"
           >
             🔔 Test Chime
           </button>
 
-          <button
-            onClick={() => { setActiveTab('admin'); setPinError(''); }}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
-              activeTab === 'admin' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            📊 Analytics {!isAdminUnlocked && '🔒'}
-          </button>
+          <div className="flex items-center gap-1.5 p-1 rounded-xl border border-orange-200/40 bg-orange-500/5">
+            <button
+              onClick={() => { setActiveTab('admin'); setPinError(''); }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                activeTab === 'admin' ? 'bg-orange-500 text-white shadow-lg' : `${theme.subText} hover:text-orange-500`
+              }`}
+            >
+              📊 Analytics {!isAdminUnlocked && '🔒'}
+            </button>
 
-          <button
-            onClick={() => { setActiveTab('kitchen'); setPinError(''); }}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
-              activeTab === 'kitchen' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            🍳 Kitchen ({pendingOrders.length + cookingOrders.length}) {!isKitchenUnlocked && '🔒'}
-          </button>
+            <button
+              onClick={() => { setActiveTab('kitchen'); setPinError(''); }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                activeTab === 'kitchen' ? 'bg-orange-500 text-white shadow-lg' : `${theme.subText} hover:text-orange-500`
+              }`}
+            >
+              🍳 Kitchen ({pendingOrders.length + cookingOrders.length}) {!isKitchenUnlocked && '🔒'}
+            </button>
 
-          <button
-            onClick={() => { setActiveTab('menu'); setPinError(''); }}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
-              activeTab === 'menu' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            📖 Menu Manager ({menuItems.length}) {!isAdminUnlocked && '🔒'}
-          </button>
+            <button
+              onClick={() => { setActiveTab('menu'); setPinError(''); }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                activeTab === 'menu' ? 'bg-orange-500 text-white shadow-lg' : `${theme.subText} hover:text-orange-500`
+              }`}
+            >
+              📖 Menu Manager ({menuItems.length}) {!isAdminUnlocked && '🔒'}
+            </button>
 
-          <button
-            onClick={() => { setActiveTab('qrcodes'); setPinError(''); }}
-            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${
-              activeTab === 'qrcodes' ? 'bg-orange-500 text-white shadow-lg' : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            📱 Table QR Codes {!isAdminUnlocked && '🔒'}
-          </button>
+            <button
+              onClick={() => { setActiveTab('qrcodes'); setPinError(''); }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                activeTab === 'qrcodes' ? 'bg-orange-500 text-white shadow-lg' : `${theme.subText} hover:text-orange-500`
+              }`}
+            >
+              📱 Table QR Codes {!isAdminUnlocked && '🔒'}
+            </button>
+          </div>
 
           {((activeTab === 'kitchen' && isKitchenUnlocked) ||
             ((activeTab === 'admin' || activeTab === 'menu' || activeTab === 'qrcodes') && isAdminUnlocked)) && (
             <button
               onClick={handleLockSession}
               title="Lock Session"
-              className="ml-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-2.5 py-1.5 rounded-lg text-xs font-bold transition"
+              className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-2.5 py-1.5 rounded-lg text-xs font-bold transition"
             >
               🔒 Lock
             </button>
@@ -588,14 +615,14 @@ export default function MultiTenantAdminDashboard() {
       <main className="max-w-7xl mx-auto px-6 pt-6">
         {/* Passcode Lock Screen Overlay */}
         {isCurrentTabLocked ? (
-          <div className="max-w-md mx-auto my-12 bg-[#121824] border border-gray-800 rounded-2xl p-8 text-center shadow-2xl">
+          <div className={`max-w-md mx-auto my-12 border rounded-2xl p-8 text-center shadow-2xl ${theme.card}`}>
             <div className="w-14 h-14 bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded-2xl flex items-center justify-center mx-auto text-2xl mb-4 font-black">
               🔒
             </div>
-            <h2 className="text-xl font-extrabold text-white mb-1">
+            <h2 className="text-xl font-extrabold mb-1">
               {activeTab === 'kitchen' ? 'Kitchen Passcode Required' : 'Owner Admin Passcode Required'}
             </h2>
-            <p className="text-xs text-gray-400 mb-6">
+            <p className={`text-xs mb-6 ${theme.subText}`}>
               {activeTab === 'kitchen'
                 ? 'Enter Kitchen PIN to manage live display orders.'
                 : 'Enter Owner Admin PIN to view revenue analytics & QR generator.'}
@@ -609,11 +636,11 @@ export default function MultiTenantAdminDashboard() {
                 onChange={(e) => setPinInput(e.target.value)}
                 autoFocus
                 required
-                className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-3 text-center text-lg font-bold tracking-widest text-white focus:outline-none focus:border-orange-500"
+                className={`w-full border rounded-xl p-3 text-center text-lg font-bold tracking-widest focus:outline-none focus:border-orange-500 ${theme.input}`}
               />
 
               {pinError && (
-                <p className="text-xs text-red-400 font-semibold bg-red-500/10 p-2 rounded-lg">
+                <p className="text-xs text-red-500 font-semibold bg-red-500/10 p-2 rounded-lg">
                   {pinError}
                 </p>
               )}
@@ -626,8 +653,8 @@ export default function MultiTenantAdminDashboard() {
               </button>
             </form>
 
-            <p className="text-[10px] text-gray-500 mt-6">
-              Default Admin PIN: <span className="font-mono text-gray-400">1234</span> | Kitchen PIN: <span className="font-mono text-gray-400">5678</span>
+            <p className={`text-[10px] mt-6 ${theme.subText}`}>
+              Default Admin PIN: <span className="font-mono font-bold">1234</span> | Kitchen PIN: <span className="font-mono font-bold">5678</span>
             </p>
           </div>
         ) : (
@@ -635,14 +662,14 @@ export default function MultiTenantAdminDashboard() {
             {activeTab === 'admin' && (
               <div className="space-y-6">
                 <div className="flex justify-between items-center flex-wrap gap-4">
-                  <h2 className="text-lg font-bold text-white">Owner Dashboard & Metrics</h2>
-                  <div className="flex gap-2 bg-[#121824] p-1 rounded-xl border border-gray-800">
+                  <h2 className="text-lg font-bold">Owner Dashboard & Metrics</h2>
+                  <div className={`flex gap-2 p-1 rounded-xl border ${theme.header}`}>
                     {(['today', 'yesterday', '7days', 'all'] as const).map((t) => (
                       <button
                         key={t}
                         onClick={() => setTimeFilter(t)}
                         className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition ${
-                          timeFilter === t ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-white'
+                          timeFilter === t ? 'bg-orange-500 text-white' : `${theme.subText} hover:text-orange-500`
                         }`}
                       >
                         {t === '7days' ? 'Last 7 Days' : t}
@@ -652,24 +679,24 @@ export default function MultiTenantAdminDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-[#121824] border border-gray-800 rounded-2xl p-5">
-                    <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Gross Revenue</p>
-                    <h3 className="text-3xl font-extrabold text-emerald-400">₹{grossRevenue}</h3>
-                    <p className="text-xs text-gray-500 mt-2">{filteredOrders.length} orders in range</p>
+                  <div className={`border rounded-2xl p-5 ${theme.card}`}>
+                    <p className={`text-xs uppercase font-semibold mb-1 ${theme.subText}`}>Gross Revenue</p>
+                    <h3 className="text-3xl font-extrabold text-emerald-500">₹{grossRevenue}</h3>
+                    <p className={`text-xs mt-2 ${theme.subText}`}>{filteredOrders.length} orders in range</p>
                   </div>
 
-                  <div className="bg-[#121824] border border-gray-800 rounded-2xl p-5">
-                    <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Active Kitchen Orders</p>
-                    <h3 className="text-3xl font-extrabold text-amber-400">{pendingOrders.length + cookingOrders.length}</h3>
-                    <p className="text-xs text-gray-500 mt-2">{pendingOrders.length} Pending | {cookingOrders.length} Cooking</p>
+                  <div className={`border rounded-2xl p-5 ${theme.card}`}>
+                    <p className={`text-xs uppercase font-semibold mb-1 ${theme.subText}`}>Active Kitchen Orders</p>
+                    <h3 className="text-3xl font-extrabold text-amber-500">{pendingOrders.length + cookingOrders.length}</h3>
+                    <p className={`text-xs mt-2 ${theme.subText}`}>{pendingOrders.length} Pending | {cookingOrders.length} Cooking</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* AUDIT LOG TABLE */}
-                  <div className="lg:col-span-2 bg-[#121824] border border-gray-800 rounded-2xl p-5">
+                  <div className={`lg:col-span-2 border rounded-2xl p-5 ${theme.card}`}>
                     <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-base font-bold text-white">Orders Audit Log ({filteredOrders.length})</h3>
+                      <h3 className="text-base font-bold">Orders Audit Log ({filteredOrders.length})</h3>
                       <button
                         onClick={exportAuditCSV}
                         className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition shadow flex items-center gap-1"
@@ -679,8 +706,8 @@ export default function MultiTenantAdminDashboard() {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs text-gray-300">
-                        <thead className="bg-[#161F2E] text-gray-400 border-b border-gray-800">
+                      <table className="w-full text-left text-xs">
+                        <thead className={`border-b ${theme.innerCard}`}>
                           <tr>
                             <th className="p-3">Time</th>
                             <th className="p-3">Table</th>
@@ -690,26 +717,26 @@ export default function MultiTenantAdminDashboard() {
                             <th className="p-3">Status</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-800/60">
+                        <tbody className="divide-y divide-orange-200/20">
                           {filteredOrders.length === 0 ? (
                             <tr>
-                              <td colSpan={6} className="p-4 text-center text-gray-500">No orders found.</td>
+                              <td colSpan={6} className={`p-4 text-center ${theme.subText}`}>No orders found.</td>
                             </tr>
                           ) : (
                             filteredOrders.map((o) => (
-                              <tr key={o.id} className="hover:bg-[#161F2E]/50">
+                              <tr key={o.id} className="hover:bg-orange-500/5">
                                 <td className="p-3 font-mono">{new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                                <td className="p-3 font-bold text-orange-400">#{o.table_number}</td>
+                                <td className="p-3 font-bold text-orange-500">#{o.table_number}</td>
                                 <td className="p-3">{o.customer_name || 'Guest'}</td>
-                                <td className="p-3 font-mono text-gray-400">{o.customer_phone || 'N/A'}</td>
-                                <td className="p-3 font-bold text-white">₹{o.total_amount}</td>
+                                <td className={`p-3 font-mono ${theme.subText}`}>{o.customer_phone || 'N/A'}</td>
+                                <td className="p-3 font-bold">₹{o.total_amount}</td>
                                 <td className="p-3">
                                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                                     o.status === 'completed' 
-                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                      ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' 
                                       : o.status === 'preparing'
-                                      ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                      : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                                      ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                                      : 'bg-orange-500/10 text-orange-600 border border-orange-500/20'
                                   }`}>
                                     {o.status === 'completed' ? 'Ready 🍽️' : o.status === 'preparing' ? 'Cooking 🍳' : 'Accepted 🕒'}
                                   </span>
@@ -723,8 +750,8 @@ export default function MultiTenantAdminDashboard() {
                   </div>
 
                   {/* ADD NEW DISH FORM */}
-                  <div className="bg-[#121824] border border-gray-800 rounded-2xl p-5">
-                    <h3 className="text-base font-bold text-white mb-4">+ Add New Menu Dish</h3>
+                  <div className={`border rounded-2xl p-5 ${theme.card}`}>
+                    <h3 className="text-base font-bold mb-4">+ Add New Menu Dish</h3>
                     <form onSubmit={handleAddDish} className="space-y-3">
                       <input
                         type="text"
@@ -732,7 +759,7 @@ export default function MultiTenantAdminDashboard() {
                         required
                         value={dishName}
                         onChange={(e) => setDishName(e.target.value)}
-                        className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                        className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
                       />
                       <input
                         type="number"
@@ -740,21 +767,21 @@ export default function MultiTenantAdminDashboard() {
                         required
                         value={dishPrice}
                         onChange={(e) => setDishPrice(e.target.value)}
-                        className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                        className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
                       />
                       <input
                         type="text"
                         placeholder="Description (Optional)"
                         value={dishDesc}
                         onChange={(e) => setDishDesc(e.target.value)}
-                        className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                        className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
                       />
                       <input
                         type="text"
                         placeholder="Image URL (Optional)"
                         value={dishImg}
                         onChange={(e) => setDishImg(e.target.value)}
-                        className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                        className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
                       />
                       <div className="flex items-center gap-2 pt-1">
                         <input
@@ -764,12 +791,12 @@ export default function MultiTenantAdminDashboard() {
                           onChange={(e) => setIsVeg(e.target.checked)}
                           className="rounded accent-orange-500"
                         />
-                        <label htmlFor="isVegCheck" className="text-xs text-gray-300">Is Vegetarian Dish?</label>
+                        <label htmlFor="isVegCheck" className={`text-xs ${theme.subText}`}>Is Vegetarian Dish?</label>
                       </div>
                       <button
                         type="submit"
                         disabled={addingDish}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition disabled:opacity-50 mt-2"
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition disabled:opacity-50 mt-2 shadow"
                       >
                         {addingDish ? 'Adding Dish...' : '+ Add Dish To Menu'}
                       </button>
@@ -784,40 +811,40 @@ export default function MultiTenantAdminDashboard() {
               <div className="space-y-6">
                 <div className="flex justify-between items-center flex-wrap gap-4">
                   <div>
-                    <h2 className="text-lg font-bold text-white">Menu Items Manager ({menuItems.length})</h2>
-                    <p className="text-xs text-gray-400">Toggle stock availability, edit dish details, or remove menu items in real time.</p>
+                    <h2 className="text-lg font-bold">Menu Items Manager ({menuItems.length})</h2>
+                    <p className={`text-xs ${theme.subText}`}>Toggle stock availability, edit dish details, or remove menu items in real time.</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {menuItems.length === 0 ? (
-                    <div className="col-span-full bg-[#121824] border border-gray-800 rounded-2xl p-8 text-center text-xs text-gray-500">
+                    <div className={`col-span-full border rounded-2xl p-8 text-center text-xs ${theme.card}`}>
                       No dishes added to menu yet. Add items from Analytics tab.
                     </div>
                   ) : (
                     menuItems.map((item) => (
-                      <div key={item.id} className="bg-[#121824] border border-gray-800 rounded-2xl p-4 flex flex-col justify-between gap-3">
+                      <div key={item.id} className={`border rounded-2xl p-4 flex flex-col justify-between gap-3 ${theme.card}`}>
                         <div>
                           <div className="flex justify-between items-start gap-2 mb-2">
                             <div className="flex items-center gap-1.5">
                               <span className={`w-3 h-3 rounded-full shrink-0 ${item.is_veg ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                              <h3 className="font-bold text-sm text-white">{item.name}</h3>
+                              <h3 className="font-bold text-sm">{item.name}</h3>
                             </div>
-                            <span className="text-sm font-black text-orange-400">₹{item.price}</span>
+                            <span className="text-sm font-black text-orange-500">₹{item.price}</span>
                           </div>
 
                           {item.description && (
-                            <p className="text-xs text-gray-400 line-clamp-2 mb-3">{item.description}</p>
+                            <p className={`text-xs line-clamp-2 mb-3 ${theme.subText}`}>{item.description}</p>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2 border-t border-gray-800/80 pt-3">
+                        <div className="flex items-center gap-2 border-t pt-3 border-orange-200/30">
                           <button
                             onClick={() => toggleAvailability(item)}
                             className={`flex-1 py-2 rounded-xl text-xs font-bold border transition ${
                               item.is_available 
-                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' 
-                                : 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
+                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' 
+                                : 'bg-red-500/10 text-red-500 border-red-500/30'
                             }`}
                           >
                             {item.is_available ? 'In Stock ✓' : 'Out of Stock ✕'}
@@ -825,14 +852,14 @@ export default function MultiTenantAdminDashboard() {
 
                           <button
                             onClick={() => setEditingItem(item)}
-                            className="px-3 py-2 bg-[#161F2E] hover:bg-gray-800 text-gray-200 border border-gray-800 rounded-xl text-xs font-bold transition"
+                            className={`px-3 py-2 border rounded-xl text-xs font-bold transition ${theme.innerCard}`}
                           >
                             ✏️ Edit
                           </button>
 
                           <button
                             onClick={() => handleDeleteItem(item.id)}
-                            className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl text-xs transition"
+                            className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl text-xs transition"
                             title="Delete Dish"
                           >
                             🗑️
@@ -850,15 +877,15 @@ export default function MultiTenantAdminDashboard() {
                 {/* ACTIVE WAITER ASSISTANCE REQUESTS */}
                 {serviceRequests.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                    <h3 className="text-xs font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2">
                       🔔 Active Table Assistance Requests ({serviceRequests.length})
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {serviceRequests.map((req) => (
                         <div key={req.id} className="bg-amber-500/10 border border-amber-500/30 p-3.5 rounded-2xl flex items-center justify-between">
                           <div>
-                            <span className="font-extrabold text-amber-400 text-sm">Table #{req.table_number}</span>
-                            <p className="text-xs font-bold text-white">{req.request_type}</p>
+                            <span className="font-extrabold text-amber-500 text-sm">Table #{req.table_number}</span>
+                            <p className="text-xs font-bold">{req.request_type}</p>
                           </div>
                           <button
                             onClick={() => resolveServiceRequest(req.id)}
@@ -872,44 +899,44 @@ export default function MultiTenantAdminDashboard() {
                   </div>
                 )}
 
-                <h2 className="text-lg font-bold text-white">Live Kitchen Display System (KDS)</h2>
+                <h2 className="text-lg font-bold">Live Kitchen Display System (KDS)</h2>
 
                 {/* 2-COLUMN PROGRESSIVE KITCHEN WORKFLOW */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* COLUMN 1: STEP 1 - INCOMING ACCEPTED ORDERS */}
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center bg-[#121824] p-3 rounded-xl border border-gray-800">
-                      <h3 className="text-xs font-extrabold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <div className={`flex justify-between items-center p-3 rounded-xl border ${theme.card}`}>
+                      <h3 className="text-xs font-extrabold text-orange-500 uppercase tracking-wider flex items-center gap-1.5">
                         🕒 Step 1: Accepted Orders ({pendingOrders.length})
                       </h3>
-                      <span className="text-[10px] bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded-full border border-orange-500/20 font-bold">
+                      <span className="text-[10px] bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded-full border border-orange-500/20 font-bold">
                         Needs Cooking
                       </span>
                     </div>
                     
                     {pendingOrders.length === 0 ? (
-                      <div className="bg-[#121824] border border-gray-800 rounded-2xl p-6 text-center text-xs text-gray-500">
+                      <div className={`border rounded-2xl p-6 text-center text-xs ${theme.card} ${theme.subText}`}>
                         No new orders waiting for kitchen ☕
                       </div>
                     ) : (
                       pendingOrders.map((order) => (
-                        <div key={order.id} className="bg-[#121824] border border-orange-500/40 rounded-2xl p-4 space-y-3 shadow-lg">
+                        <div key={order.id} className={`border border-orange-500/40 rounded-2xl p-4 space-y-3 shadow-lg ${theme.card}`}>
                           <div className="flex justify-between items-center">
-                            <span className="text-lg font-black text-orange-400">Table #{order.table_number}</span>
-                            <span className="text-xs text-gray-400 font-medium">{order.customer_name || 'Guest'}</span>
+                            <span className="text-lg font-black text-orange-500">Table #{order.table_number}</span>
+                            <span className={`text-xs ${theme.subText}`}>{order.customer_name || 'Guest'}</span>
                           </div>
 
-                          <div className="space-y-1 border-t border-b border-gray-800 py-2">
+                          <div className="space-y-1 border-t border-b py-2 border-orange-200/20">
                             {order.order_items?.map((item) => (
                               <div key={item.id} className="flex justify-between text-xs">
-                                <span className="text-gray-200">{item.menu_items?.name}</span>
-                                <span className="font-bold text-orange-400">x{item.quantity}</span>
+                                <span>{item.menu_items?.name}</span>
+                                <span className="font-bold text-orange-500">x{item.quantity}</span>
                               </div>
                             ))}
                           </div>
 
                           {order.notes && (
-                            <p className="text-[11px] text-amber-400/90 bg-amber-500/10 p-2 rounded-lg">
+                            <p className="text-[11px] text-amber-600 bg-amber-500/10 p-2 rounded-lg">
                               Note: {order.notes}
                             </p>
                           )}
@@ -927,38 +954,38 @@ export default function MultiTenantAdminDashboard() {
 
                   {/* COLUMN 2: STEP 2 - CURRENTLY COOKING */}
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center bg-[#121824] p-3 rounded-xl border border-gray-800">
-                      <h3 className="text-xs font-extrabold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <div className={`flex justify-between items-center p-3 rounded-xl border ${theme.card}`}>
+                      <h3 className="text-xs font-extrabold text-amber-500 uppercase tracking-wider flex items-center gap-1.5">
                         🍳 Step 2: Currently Cooking ({cookingOrders.length})
                       </h3>
-                      <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/20 font-bold animate-pulse">
+                      <span className="text-[10px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full border border-amber-500/20 font-bold animate-pulse">
                         In Progress
                       </span>
                     </div>
 
                     {cookingOrders.length === 0 ? (
-                      <div className="bg-[#121824] border border-gray-800 rounded-2xl p-6 text-center text-xs text-gray-500">
+                      <div className={`border rounded-2xl p-6 text-center text-xs ${theme.card} ${theme.subText}`}>
                         No dishes currently cooking
                       </div>
                     ) : (
                       cookingOrders.map((order) => (
-                        <div key={order.id} className="bg-[#121824] border border-amber-500/40 rounded-2xl p-4 space-y-3 shadow-lg">
+                        <div key={order.id} className={`border border-amber-500/40 rounded-2xl p-4 space-y-3 shadow-lg ${theme.card}`}>
                           <div className="flex justify-between items-center">
-                            <span className="text-lg font-black text-amber-400">Table #{order.table_number}</span>
-                            <span className="text-xs text-gray-400 font-medium">{order.customer_name || 'Guest'}</span>
+                            <span className="text-lg font-black text-amber-500">Table #{order.table_number}</span>
+                            <span className={`text-xs ${theme.subText}`}>{order.customer_name || 'Guest'}</span>
                           </div>
 
-                          <div className="space-y-1 border-t border-b border-gray-800 py-2">
+                          <div className="space-y-1 border-t border-b py-2 border-orange-200/20">
                             {order.order_items?.map((item) => (
                               <div key={item.id} className="flex justify-between text-xs">
-                                <span className="text-gray-200">{item.menu_items?.name}</span>
-                                <span className="font-bold text-amber-400">x{item.quantity}</span>
+                                <span>{item.menu_items?.name}</span>
+                                <span className="font-bold text-amber-500">x{item.quantity}</span>
                               </div>
                             ))}
                           </div>
 
                           {order.notes && (
-                            <p className="text-[11px] text-amber-400/90 bg-amber-500/10 p-2 rounded-lg">
+                            <p className="text-[11px] text-amber-600 bg-amber-500/10 p-2 rounded-lg">
                               Note: {order.notes}
                             </p>
                           )}
@@ -981,28 +1008,28 @@ export default function MultiTenantAdminDashboard() {
               <div className="space-y-6">
                 <div className="flex justify-between items-center flex-wrap gap-4">
                   <div>
-                    <h2 className="text-lg font-bold text-white">Table QR Code Generator & Printer</h2>
-                    <p className="text-xs text-gray-400">Generate, test, and print branded QR cards for every table in your cafe.</p>
+                    <h2 className="text-lg font-bold">Table QR Code Generator & Printer</h2>
+                    <p className={`text-xs ${theme.subText}`}>Generate, test, and print branded QR cards for every table in your cafe.</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="bg-[#121824] border border-gray-800 rounded-2xl p-5 space-y-4">
-                    <h3 className="text-sm font-bold text-white">Select or Enter Table Number</h3>
+                  <div className={`border rounded-2xl p-5 space-y-4 ${theme.card}`}>
+                    <h3 className="text-sm font-bold">Select or Enter Table Number</h3>
                     
                     <div>
-                      <label className="text-xs text-gray-400 mb-1 block">Table Number</label>
+                      <label className={`text-xs mb-1 block ${theme.subText}`}>Table Number</label>
                       <input
                         type="text"
                         value={selectedTable}
                         onChange={(e) => setSelectedTable(e.target.value)}
                         placeholder="e.g. 1, 2, 5, T-12"
-                        className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-3 text-sm text-white font-bold"
+                        className={`w-full border rounded-xl p-3 text-sm font-bold ${theme.input}`}
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs text-gray-400 mb-2 block">Quick Pick Table</label>
+                      <label className={`text-xs mb-2 block ${theme.subText}`}>Quick Pick Table</label>
                       <div className="grid grid-cols-5 gap-2">
                         {Array.from({ length: customTableCount }, (_, i) => (i + 1).toString()).map((tbl) => (
                           <button
@@ -1011,7 +1038,7 @@ export default function MultiTenantAdminDashboard() {
                             className={`py-2 rounded-lg text-xs font-bold transition ${
                               selectedTable === tbl
                                 ? 'bg-orange-500 text-white'
-                                : 'bg-[#161F2E] text-gray-300 hover:bg-gray-800'
+                                : `${theme.innerCard} hover:border-orange-500`
                             }`}
                           >
                             #{tbl}
@@ -1020,18 +1047,18 @@ export default function MultiTenantAdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-gray-800">
-                      <label className="text-xs text-gray-400 mb-1 block">Total Tables in Cafe</label>
+                    <div className="pt-2 border-t border-orange-200/30">
+                      <label className={`text-xs mb-1 block ${theme.subText}`}>Total Tables in Cafe</label>
                       <input
                         type="number"
                         value={customTableCount}
                         onChange={(e) => setCustomTableCount(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                        className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
                       />
                     </div>
                   </div>
 
-                  <div className="lg:col-span-2 bg-[#121824] border border-gray-800 rounded-2xl p-6 flex flex-col items-center text-center justify-center">
+                  <div className={`lg:col-span-2 border rounded-2xl p-6 flex flex-col items-center text-center justify-center ${theme.card}`}>
                     <div className="bg-white text-gray-900 p-8 rounded-3xl shadow-2xl border-4 border-orange-500 max-w-sm w-full">
                       <h3 className="text-xl font-black text-orange-500 uppercase tracking-wide mb-1">{cafe.name}</h3>
                       <p className="text-xs text-gray-500 font-medium mb-6">Scan to View Menu & Place Order</p>
@@ -1069,7 +1096,7 @@ export default function MultiTenantAdminDashboard() {
                         href={qrUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="bg-[#161F2E] hover:bg-gray-800 text-gray-300 font-bold px-4 py-3 rounded-xl text-xs transition border border-gray-800"
+                        className={`font-bold px-4 py-3 rounded-xl text-xs transition border ${theme.innerCard}`}
                       >
                         🔗 Test Customer Link
                       </a>
@@ -1085,57 +1112,57 @@ export default function MultiTenantAdminDashboard() {
       {/* EDIT DISH MODAL */}
       {editingItem && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#121824] border border-gray-800 w-full max-w-md rounded-2xl p-6 space-y-4">
-            <div className="flex justify-between items-center border-b border-gray-800 pb-3">
-              <h3 className="font-bold text-sm text-white">Edit Menu Item</h3>
-              <button onClick={() => setEditingItem(null)} className="text-gray-400 hover:text-white">✕</button>
+          <div className={`border w-full max-w-md rounded-2xl p-6 space-y-4 ${theme.card}`}>
+            <div className="flex justify-between items-center border-b pb-3 border-orange-200/20">
+              <h3 className="font-bold text-sm">Edit Menu Item</h3>
+              <button onClick={() => setEditingItem(null)} className={theme.subText}>✕</button>
             </div>
 
             <form onSubmit={handleUpdateItem} className="space-y-3">
               <div>
-                <label className="text-[11px] text-gray-400 block mb-1">Dish Name</label>
+                <label className={`text-[11px] block mb-1 ${theme.subText}`}>Dish Name</label>
                 <input
                   type="text"
                   required
                   value={editingItem.name}
                   onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                  className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                  className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
                 />
               </div>
 
               <div>
-                <label className="text-[11px] text-gray-400 block mb-1">Price (₹)</label>
+                <label className={`text-[11px] block mb-1 ${theme.subText}`}>Price (₹)</label>
                 <input
                   type="number"
                   required
                   value={editingItem.price}
                   onChange={(e) => setEditingItem({ ...editingItem, price: parseFloat(e.target.value) || 0 })}
-                  className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                  className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
                 />
               </div>
 
               <div>
-                <label className="text-[11px] text-gray-400 block mb-1">Description</label>
+                <label className={`text-[11px] block mb-1 ${theme.subText}`}>Description</label>
                 <input
                   type="text"
                   value={editingItem.description || ''}
                   onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                  className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                  className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
                 />
               </div>
 
               <div>
-                <label className="text-[11px] text-gray-400 block mb-1">Image URL</label>
+                <label className={`text-[11px] block mb-1 ${theme.subText}`}>Image URL</label>
                 <input
                   type="text"
                   value={editingItem.image_url || ''}
                   onChange={(e) => setEditingItem({ ...editingItem, image_url: e.target.value })}
-                  className="w-full bg-[#161F2E] border border-gray-800 rounded-xl p-2.5 text-xs text-white"
+                  className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
                 />
               </div>
 
               <div className="flex items-center gap-4 pt-1">
-                <label className="flex items-center gap-2 text-xs text-gray-300">
+                <label className={`flex items-center gap-2 text-xs ${theme.subText}`}>
                   <input
                     type="checkbox"
                     checked={editingItem.is_veg}
@@ -1145,7 +1172,7 @@ export default function MultiTenantAdminDashboard() {
                   Vegetarian
                 </label>
 
-                <label className="flex items-center gap-2 text-xs text-gray-300">
+                <label className={`flex items-center gap-2 text-xs ${theme.subText}`}>
                   <input
                     type="checkbox"
                     checked={editingItem.is_available}
@@ -1160,13 +1187,13 @@ export default function MultiTenantAdminDashboard() {
                 <button
                   type="button"
                   onClick={() => setEditingItem(null)}
-                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-2.5 rounded-xl text-xs transition"
+                  className={`flex-1 border font-bold py-2.5 rounded-xl text-xs transition ${theme.innerCard}`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition"
+                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition shadow"
                 >
                   Save Changes
                 </button>
