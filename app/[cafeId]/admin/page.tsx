@@ -59,6 +59,20 @@ interface Cafe {
   kitchen_pin?: string;
 }
 
+function getFallbackImage(name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes('tea') || n.includes('chai')) return 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=300&auto=format&fit=crop&q=60';
+  if (n.includes('coffee')) return 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=300&auto=format&fit=crop&q=60';
+  if (n.includes('burger')) return 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=300&auto=format&fit=crop&q=60';
+  if (n.includes('pizza')) return 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=300&auto=format&fit=crop&q=60';
+  if (n.includes('fry') || n.includes('fries')) return 'https://images.unsplash.com/photo-1576107232684-1279f3908594?w=300&auto=format&fit=crop&q=60';
+  if (n.includes('sandwich')) return 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=300&auto=format&fit=crop&q=60';
+  if (n.includes('samosa')) return 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=300&auto=format&fit=crop&q=60';
+  if (n.includes('pasta')) return 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=300&auto=format&fit=crop&q=60';
+  if (n.includes('cake') || n.includes('pastry')) return 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=300&auto=format&fit=crop&q=60';
+  return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&auto=format&fit=crop&q=60';
+}
+
 function playNotificationSound() {
   try {
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -66,8 +80,8 @@ function playNotificationSound() {
     const gain = audioCtx.createGain();
 
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15);
 
     gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
@@ -532,8 +546,8 @@ export default function MultiTenantAdminDashboard() {
   const qrUrl = `${getBaseUrl()}/${cafe.slug}?table=${selectedTable}`;
 
   return (
-    <div className={`min-h-screen font-sans pb-12 transition-colors duration-200 ${theme.bg}`}>
-      <header className={`border-b px-6 py-4 flex flex-wrap items-center justify-between gap-4 ${theme.header}`}>
+    <div className={`min-h-screen font-sans pb-12 transition-colors duration-300 ${theme.bg}`}>
+      <header className={`border-b px-6 py-4 flex flex-wrap items-center justify-between gap-4 transition-all duration-300 ${theme.header}`}>
         <div>
           <h1 className="text-xl font-extrabold text-orange-500">{cafe.name}</h1>
           <p className={`text-xs ${theme.subText}`}>Master Owner Dashboard & Live KDS</p>
@@ -542,7 +556,7 @@ export default function MultiTenantAdminDashboard() {
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition ${
+            className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all duration-300 hover:scale-105 active:scale-95 ${
               isDarkMode 
                 ? 'bg-slate-800 text-amber-400 border-slate-700' 
                 : 'bg-white text-orange-600 border-[#FAD7D2] shadow-sm'
@@ -553,7 +567,7 @@ export default function MultiTenantAdminDashboard() {
 
           <button
             onClick={playNotificationSound}
-            className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition ${
+            className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all duration-300 hover:scale-105 active:scale-95 ${
               isDarkMode ? 'bg-gray-800 text-orange-400 border-gray-700' : 'bg-white text-orange-600 border-[#FAD7D2] shadow-sm'
             }`}
             title="Test Kitchen Sound Chime"
@@ -564,7 +578,7 @@ export default function MultiTenantAdminDashboard() {
           <div className="flex items-center gap-1.5 p-1 rounded-xl border border-orange-200/40 bg-orange-500/5">
             <button
               onClick={() => { setActiveTab('admin'); setPinError(''); }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 hover:scale-105 ${
                 activeTab === 'admin' ? 'bg-orange-500 text-white shadow-lg' : `${theme.subText} hover:text-orange-500`
               }`}
             >
@@ -573,7 +587,7 @@ export default function MultiTenantAdminDashboard() {
 
             <button
               onClick={() => { setActiveTab('kitchen'); setPinError(''); }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 hover:scale-105 ${
                 activeTab === 'kitchen' ? 'bg-orange-500 text-white shadow-lg' : `${theme.subText} hover:text-orange-500`
               }`}
             >
@@ -582,7 +596,7 @@ export default function MultiTenantAdminDashboard() {
 
             <button
               onClick={() => { setActiveTab('menu'); setPinError(''); }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 hover:scale-105 ${
                 activeTab === 'menu' ? 'bg-orange-500 text-white shadow-lg' : `${theme.subText} hover:text-orange-500`
               }`}
             >
@@ -591,7 +605,7 @@ export default function MultiTenantAdminDashboard() {
 
             <button
               onClick={() => { setActiveTab('qrcodes'); setPinError(''); }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 hover:scale-105 ${
                 activeTab === 'qrcodes' ? 'bg-orange-500 text-white shadow-lg' : `${theme.subText} hover:text-orange-500`
               }`}
             >
@@ -604,7 +618,7 @@ export default function MultiTenantAdminDashboard() {
             <button
               onClick={handleLockSession}
               title="Lock Session"
-              className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-2.5 py-1.5 rounded-lg text-xs font-bold transition"
+              className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 hover:scale-105"
             >
               🔒 Lock
             </button>
@@ -612,10 +626,10 @@ export default function MultiTenantAdminDashboard() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 pt-6">
+      <main className="max-w-7xl mx-auto px-6 pt-6 transition-all duration-300">
         {/* Passcode Lock Screen Overlay */}
         {isCurrentTabLocked ? (
-          <div className={`max-w-md mx-auto my-12 border rounded-2xl p-8 text-center shadow-2xl ${theme.card}`}>
+          <div className={`max-w-md mx-auto my-12 border rounded-2xl p-8 text-center shadow-2xl transition-all duration-300 transform hover:scale-[1.01] ${theme.card}`}>
             <div className="w-14 h-14 bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded-2xl flex items-center justify-center mx-auto text-2xl mb-4 font-black">
               🔒
             </div>
@@ -636,18 +650,18 @@ export default function MultiTenantAdminDashboard() {
                 onChange={(e) => setPinInput(e.target.value)}
                 autoFocus
                 required
-                className={`w-full border rounded-xl p-3 text-center text-lg font-bold tracking-widest focus:outline-none focus:border-orange-500 ${theme.input}`}
+                className={`w-full border rounded-xl p-3 text-center text-lg font-bold tracking-widest focus:outline-none focus:border-orange-500 transition-all ${theme.input}`}
               />
 
               {pinError && (
-                <p className="text-xs text-red-500 font-semibold bg-red-500/10 p-2 rounded-lg">
+                <p className="text-xs text-red-500 font-semibold bg-red-500/10 p-2 rounded-lg animate-shake">
                   {pinError}
                 </p>
               )}
 
               <button
                 type="submit"
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl text-xs transition shadow-lg"
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl text-xs transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-lg"
               >
                 🔓 Unlock Access
               </button>
@@ -660,7 +674,7 @@ export default function MultiTenantAdminDashboard() {
         ) : (
           <>
             {activeTab === 'admin' && (
-              <div className="space-y-6">
+              <div className="space-y-6 transition-all duration-300">
                 <div className="flex justify-between items-center flex-wrap gap-4">
                   <h2 className="text-lg font-bold">Owner Dashboard & Metrics</h2>
                   <div className={`flex gap-2 p-1 rounded-xl border ${theme.header}`}>
@@ -668,8 +682,8 @@ export default function MultiTenantAdminDashboard() {
                       <button
                         key={t}
                         onClick={() => setTimeFilter(t)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition ${
-                          timeFilter === t ? 'bg-orange-500 text-white' : `${theme.subText} hover:text-orange-500`
+                        className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all duration-300 hover:scale-105 ${
+                          timeFilter === t ? 'bg-orange-500 text-white shadow' : `${theme.subText} hover:text-orange-500`
                         }`}
                       >
                         {t === '7days' ? 'Last 7 Days' : t}
@@ -679,13 +693,13 @@ export default function MultiTenantAdminDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className={`border rounded-2xl p-5 ${theme.card}`}>
+                  <div className={`border rounded-2xl p-5 transition-all duration-300 hover:scale-[1.01] ${theme.card}`}>
                     <p className={`text-xs uppercase font-semibold mb-1 ${theme.subText}`}>Gross Revenue</p>
                     <h3 className="text-3xl font-extrabold text-emerald-500">₹{grossRevenue}</h3>
                     <p className={`text-xs mt-2 ${theme.subText}`}>{filteredOrders.length} orders in range</p>
                   </div>
 
-                  <div className={`border rounded-2xl p-5 ${theme.card}`}>
+                  <div className={`border rounded-2xl p-5 transition-all duration-300 hover:scale-[1.01] ${theme.card}`}>
                     <p className={`text-xs uppercase font-semibold mb-1 ${theme.subText}`}>Active Kitchen Orders</p>
                     <h3 className="text-3xl font-extrabold text-amber-500">{pendingOrders.length + cookingOrders.length}</h3>
                     <p className={`text-xs mt-2 ${theme.subText}`}>{pendingOrders.length} Pending | {cookingOrders.length} Cooking</p>
@@ -693,13 +707,13 @@ export default function MultiTenantAdminDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* AUDIT LOG TABLE */}
-                  <div className={`lg:col-span-2 border rounded-2xl p-5 ${theme.card}`}>
+                  {/* AUDIT LOG TABLE WITH DATE + TIME */}
+                  <div className={`lg:col-span-2 border rounded-2xl p-5 transition-all duration-300 ${theme.card}`}>
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-base font-bold">Orders Audit Log ({filteredOrders.length})</h3>
                       <button
                         onClick={exportAuditCSV}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition shadow flex items-center gap-1"
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg transition-all duration-300 hover:scale-105 shadow flex items-center gap-1"
                       >
                         📥 Export Audit CSV
                       </button>
@@ -709,7 +723,7 @@ export default function MultiTenantAdminDashboard() {
                       <table className="w-full text-left text-xs">
                         <thead className={`border-b ${theme.innerCard}`}>
                           <tr>
-                            <th className="p-3">Time</th>
+                            <th className="p-3">Date & Time</th>
                             <th className="p-3">Table</th>
                             <th className="p-3">Customer</th>
                             <th className="p-3">Phone</th>
@@ -723,26 +737,31 @@ export default function MultiTenantAdminDashboard() {
                               <td colSpan={6} className={`p-4 text-center ${theme.subText}`}>No orders found.</td>
                             </tr>
                           ) : (
-                            filteredOrders.map((o) => (
-                              <tr key={o.id} className="hover:bg-orange-500/5">
-                                <td className="p-3 font-mono">{new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                                <td className="p-3 font-bold text-orange-500">#{o.table_number}</td>
-                                <td className="p-3">{o.customer_name || 'Guest'}</td>
-                                <td className={`p-3 font-mono ${theme.subText}`}>{o.customer_phone || 'N/A'}</td>
-                                <td className="p-3 font-bold">₹{o.total_amount}</td>
-                                <td className="p-3">
-                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                    o.status === 'completed' 
-                                      ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' 
-                                      : o.status === 'preparing'
-                                      ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
-                                      : 'bg-orange-500/10 text-orange-600 border border-orange-500/20'
-                                  }`}>
-                                    {o.status === 'completed' ? 'Ready 🍽️' : o.status === 'preparing' ? 'Cooking 🍳' : 'Accepted 🕒'}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))
+                            filteredOrders.map((o) => {
+                              const d = new Date(o.created_at);
+                              const formattedDateTime = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear().toString().slice(-2)}, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                              
+                              return (
+                                <tr key={o.id} className="hover:bg-orange-500/5 transition-colors">
+                                  <td className="p-3 font-mono text-[11px] font-semibold">{formattedDateTime}</td>
+                                  <td className="p-3 font-bold text-orange-500">#{o.table_number}</td>
+                                  <td className="p-3">{o.customer_name || 'Guest'}</td>
+                                  <td className={`p-3 font-mono ${theme.subText}`}>{o.customer_phone || 'N/A'}</td>
+                                  <td className="p-3 font-bold">₹{o.total_amount}</td>
+                                  <td className="p-3">
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase transition-all ${
+                                      o.status === 'completed' 
+                                        ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' 
+                                        : o.status === 'preparing'
+                                        ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                                        : 'bg-orange-500/10 text-orange-600 border border-orange-500/20'
+                                    }`}>
+                                      {o.status === 'completed' ? 'Ready 🍽️' : o.status === 'preparing' ? 'Cooking 🍳' : 'Accepted 🕒'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })
                           )}
                         </tbody>
                       </table>
@@ -750,7 +769,7 @@ export default function MultiTenantAdminDashboard() {
                   </div>
 
                   {/* ADD NEW DISH FORM */}
-                  <div className={`border rounded-2xl p-5 ${theme.card}`}>
+                  <div className={`border rounded-2xl p-5 transition-all duration-300 ${theme.card}`}>
                     <h3 className="text-base font-bold mb-4">+ Add New Menu Dish</h3>
                     <form onSubmit={handleAddDish} className="space-y-3">
                       <input
@@ -759,7 +778,7 @@ export default function MultiTenantAdminDashboard() {
                         required
                         value={dishName}
                         onChange={(e) => setDishName(e.target.value)}
-                        className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
+                        className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
                       />
                       <input
                         type="number"
@@ -767,21 +786,21 @@ export default function MultiTenantAdminDashboard() {
                         required
                         value={dishPrice}
                         onChange={(e) => setDishPrice(e.target.value)}
-                        className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
+                        className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
                       />
                       <input
                         type="text"
                         placeholder="Description (Optional)"
                         value={dishDesc}
                         onChange={(e) => setDishDesc(e.target.value)}
-                        className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
+                        className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
                       />
                       <input
                         type="text"
                         placeholder="Image URL (Optional)"
                         value={dishImg}
                         onChange={(e) => setDishImg(e.target.value)}
-                        className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
+                        className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
                       />
                       <div className="flex items-center gap-2 pt-1">
                         <input
@@ -789,14 +808,14 @@ export default function MultiTenantAdminDashboard() {
                           id="isVegCheck"
                           checked={isVeg}
                           onChange={(e) => setIsVeg(e.target.checked)}
-                          className="rounded accent-orange-500"
+                          className="rounded accent-orange-500 cursor-pointer"
                         />
-                        <label htmlFor="isVegCheck" className={`text-xs ${theme.subText}`}>Is Vegetarian Dish?</label>
+                        <label htmlFor="isVegCheck" className={`text-xs cursor-pointer ${theme.subText}`}>Is Vegetarian Dish?</label>
                       </div>
                       <button
                         type="submit"
                         disabled={addingDish}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition disabled:opacity-50 mt-2 shadow"
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50 mt-2 shadow"
                       >
                         {addingDish ? 'Adding Dish...' : '+ Add Dish To Menu'}
                       </button>
@@ -806,9 +825,9 @@ export default function MultiTenantAdminDashboard() {
               </div>
             )}
 
-            {/* DEDICATED MENU MANAGER TAB */}
+            {/* DEDICATED MENU MANAGER TAB WITH DISH IMAGES */}
             {activeTab === 'menu' && (
-              <div className="space-y-6">
+              <div className="space-y-6 transition-all duration-300">
                 <div className="flex justify-between items-center flex-wrap gap-4">
                   <div>
                     <h2 className="text-lg font-bold">Menu Items Manager ({menuItems.length})</h2>
@@ -822,58 +841,68 @@ export default function MultiTenantAdminDashboard() {
                       No dishes added to menu yet. Add items from Analytics tab.
                     </div>
                   ) : (
-                    menuItems.map((item) => (
-                      <div key={item.id} className={`border rounded-2xl p-4 flex flex-col justify-between gap-3 ${theme.card}`}>
-                        <div>
-                          <div className="flex justify-between items-start gap-2 mb-2">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`w-3 h-3 rounded-full shrink-0 ${item.is_veg ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                              <h3 className="font-bold text-sm">{item.name}</h3>
+                    menuItems.map((item) => {
+                      const imgUrl = item.image_url || getFallbackImage(item.name);
+                      return (
+                        <div key={item.id} className={`border rounded-2xl p-4 flex flex-col justify-between gap-3 transition-all duration-300 hover:scale-[1.01] hover:shadow-lg ${theme.card}`}>
+                          <div className="flex items-start gap-3">
+                            <img
+                              src={imgUrl}
+                              alt={item.name}
+                              className="w-16 h-16 object-cover rounded-xl border border-orange-200/40 shrink-0 shadow-sm"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-start gap-1">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.is_veg ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                  <h3 className="font-bold text-sm truncate">{item.name}</h3>
+                                </div>
+                                <span className="text-sm font-black text-orange-500 shrink-0">₹{item.price}</span>
+                              </div>
+
+                              {item.description && (
+                                <p className={`text-xs line-clamp-2 mt-1 ${theme.subText}`}>{item.description}</p>
+                              )}
                             </div>
-                            <span className="text-sm font-black text-orange-500">₹{item.price}</span>
                           </div>
 
-                          {item.description && (
-                            <p className={`text-xs line-clamp-2 mb-3 ${theme.subText}`}>{item.description}</p>
-                          )}
+                          <div className="flex items-center gap-2 border-t pt-3 border-orange-200/30">
+                            <button
+                              onClick={() => toggleAvailability(item)}
+                              className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-all duration-300 hover:scale-105 ${
+                                item.is_available 
+                                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' 
+                                  : 'bg-red-500/10 text-red-500 border-red-500/30'
+                              }`}
+                            >
+                              {item.is_available ? 'In Stock ✓' : 'Out of Stock ✕'}
+                            </button>
+
+                            <button
+                              onClick={() => setEditingItem(item)}
+                              className={`px-3 py-2 border rounded-xl text-xs font-bold transition-all duration-300 hover:scale-105 ${theme.innerCard}`}
+                            >
+                              ✏️ Edit
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl text-xs transition-all duration-300 hover:scale-105"
+                              title="Delete Dish"
+                            >
+                              🗑️
+                            </button>
+                          </div>
                         </div>
-
-                        <div className="flex items-center gap-2 border-t pt-3 border-orange-200/30">
-                          <button
-                            onClick={() => toggleAvailability(item)}
-                            className={`flex-1 py-2 rounded-xl text-xs font-bold border transition ${
-                              item.is_available 
-                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' 
-                                : 'bg-red-500/10 text-red-500 border-red-500/30'
-                            }`}
-                          >
-                            {item.is_available ? 'In Stock ✓' : 'Out of Stock ✕'}
-                          </button>
-
-                          <button
-                            onClick={() => setEditingItem(item)}
-                            className={`px-3 py-2 border rounded-xl text-xs font-bold transition ${theme.innerCard}`}
-                          >
-                            ✏️ Edit
-                          </button>
-
-                          <button
-                            onClick={() => handleDeleteItem(item.id)}
-                            className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl text-xs transition"
-                            title="Delete Dish"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
             )}
 
             {activeTab === 'kitchen' && (
-              <div className="space-y-6">
+              <div className="space-y-6 transition-all duration-300">
                 {/* ACTIVE WAITER ASSISTANCE REQUESTS */}
                 {serviceRequests.length > 0 && (
                   <div className="space-y-2">
@@ -882,14 +911,14 @@ export default function MultiTenantAdminDashboard() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {serviceRequests.map((req) => (
-                        <div key={req.id} className="bg-amber-500/10 border border-amber-500/30 p-3.5 rounded-2xl flex items-center justify-between">
+                        <div key={req.id} className="bg-amber-500/10 border border-amber-500/30 p-3.5 rounded-2xl flex items-center justify-between transition-all duration-300 hover:scale-[1.01]">
                           <div>
                             <span className="font-extrabold text-amber-500 text-sm">Table #{req.table_number}</span>
                             <p className="text-xs font-bold">{req.request_type}</p>
                           </div>
                           <button
                             onClick={() => resolveServiceRequest(req.id)}
-                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl transition"
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-xl transition-all duration-300 hover:scale-105"
                           >
                             ✓ Resolve
                           </button>
@@ -920,7 +949,7 @@ export default function MultiTenantAdminDashboard() {
                       </div>
                     ) : (
                       pendingOrders.map((order) => (
-                        <div key={order.id} className={`border border-orange-500/40 rounded-2xl p-4 space-y-3 shadow-lg ${theme.card}`}>
+                        <div key={order.id} className={`border border-orange-500/40 rounded-2xl p-4 space-y-3 shadow-lg transition-all duration-300 hover:scale-[1.01] ${theme.card}`}>
                           <div className="flex justify-between items-center">
                             <span className="text-lg font-black text-orange-500">Table #{order.table_number}</span>
                             <span className={`text-xs ${theme.subText}`}>{order.customer_name || 'Guest'}</span>
@@ -943,7 +972,7 @@ export default function MultiTenantAdminDashboard() {
 
                           <button
                             onClick={() => updateOrderStatus(order.id, 'preparing')}
-                            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-1.5"
+                            className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-md flex items-center justify-center gap-1.5"
                           >
                             🍳 Start Cooking →
                           </button>
@@ -969,7 +998,7 @@ export default function MultiTenantAdminDashboard() {
                       </div>
                     ) : (
                       cookingOrders.map((order) => (
-                        <div key={order.id} className={`border border-amber-500/40 rounded-2xl p-4 space-y-3 shadow-lg ${theme.card}`}>
+                        <div key={order.id} className={`border border-amber-500/40 rounded-2xl p-4 space-y-3 shadow-lg transition-all duration-300 hover:scale-[1.01] ${theme.card}`}>
                           <div className="flex justify-between items-center">
                             <span className="text-lg font-black text-amber-500">Table #{order.table_number}</span>
                             <span className={`text-xs ${theme.subText}`}>{order.customer_name || 'Guest'}</span>
@@ -992,7 +1021,7 @@ export default function MultiTenantAdminDashboard() {
 
                           <button
                             onClick={() => updateOrderStatus(order.id, 'completed')}
-                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-1.5"
+                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-md flex items-center justify-center gap-1.5"
                           >
                             🍽️ Mark Order Ready & Served ✓
                           </button>
@@ -1005,7 +1034,7 @@ export default function MultiTenantAdminDashboard() {
             )}
 
             {activeTab === 'qrcodes' && (
-              <div className="space-y-6">
+              <div className="space-y-6 transition-all duration-300">
                 <div className="flex justify-between items-center flex-wrap gap-4">
                   <div>
                     <h2 className="text-lg font-bold">Table QR Code Generator & Printer</h2>
@@ -1024,7 +1053,7 @@ export default function MultiTenantAdminDashboard() {
                         value={selectedTable}
                         onChange={(e) => setSelectedTable(e.target.value)}
                         placeholder="e.g. 1, 2, 5, T-12"
-                        className={`w-full border rounded-xl p-3 text-sm font-bold ${theme.input}`}
+                        className={`w-full border rounded-xl p-3 text-sm font-bold transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
                       />
                     </div>
 
@@ -1035,9 +1064,9 @@ export default function MultiTenantAdminDashboard() {
                           <button
                             key={tbl}
                             onClick={() => setSelectedTable(tbl)}
-                            className={`py-2 rounded-lg text-xs font-bold transition ${
+                            className={`py-2 rounded-lg text-xs font-bold transition-all duration-300 hover:scale-105 ${
                               selectedTable === tbl
-                                ? 'bg-orange-500 text-white'
+                                ? 'bg-orange-500 text-white shadow'
                                 : `${theme.innerCard} hover:border-orange-500`
                             }`}
                           >
@@ -1053,13 +1082,13 @@ export default function MultiTenantAdminDashboard() {
                         type="number"
                         value={customTableCount}
                         onChange={(e) => setCustomTableCount(Math.max(1, parseInt(e.target.value) || 1))}
-                        className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
+                        className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
                       />
                     </div>
                   </div>
 
-                  <div className={`lg:col-span-2 border rounded-2xl p-6 flex flex-col items-center text-center justify-center ${theme.card}`}>
-                    <div className="bg-white text-gray-900 p-8 rounded-3xl shadow-2xl border-4 border-orange-500 max-w-sm w-full">
+                  <div className={`lg:col-span-2 border rounded-2xl p-6 flex flex-col items-center text-center justify-center transition-all duration-300 ${theme.card}`}>
+                    <div className="bg-white text-gray-900 p-8 rounded-3xl shadow-2xl border-4 border-orange-500 max-w-sm w-full transition-all duration-300 hover:scale-[1.01]">
                       <h3 className="text-xl font-black text-orange-500 uppercase tracking-wide mb-1">{cafe.name}</h3>
                       <p className="text-xs text-gray-500 font-medium mb-6">Scan to View Menu & Place Order</p>
 
@@ -1088,7 +1117,7 @@ export default function MultiTenantAdminDashboard() {
                     <div className="mt-6 flex flex-wrap gap-3 justify-center w-full max-w-sm">
                       <button
                         onClick={handlePrintQR}
-                        className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl text-xs transition shadow-lg flex items-center justify-center gap-2"
+                        className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl text-xs transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow-lg flex items-center justify-center gap-2"
                       >
                         🖨️ Print / Download Table #{selectedTable} QR
                       </button>
@@ -1096,7 +1125,7 @@ export default function MultiTenantAdminDashboard() {
                         href={qrUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className={`font-bold px-4 py-3 rounded-xl text-xs transition border ${theme.innerCard}`}
+                        className={`font-bold px-4 py-3 rounded-xl text-xs transition-all duration-300 hover:scale-105 border ${theme.innerCard}`}
                       >
                         🔗 Test Customer Link
                       </a>
@@ -1111,11 +1140,11 @@ export default function MultiTenantAdminDashboard() {
 
       {/* EDIT DISH MODAL */}
       {editingItem && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`border w-full max-w-md rounded-2xl p-6 space-y-4 ${theme.card}`}>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300 animate-fadeIn">
+          <div className={`border w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl transition-all duration-300 transform scale-100 ${theme.card}`}>
             <div className="flex justify-between items-center border-b pb-3 border-orange-200/20">
               <h3 className="font-bold text-sm">Edit Menu Item</h3>
-              <button onClick={() => setEditingItem(null)} className={theme.subText}>✕</button>
+              <button onClick={() => setEditingItem(null)} className={`transition-colors hover:text-orange-500 ${theme.subText}`}>✕</button>
             </div>
 
             <form onSubmit={handleUpdateItem} className="space-y-3">
@@ -1126,7 +1155,7 @@ export default function MultiTenantAdminDashboard() {
                   required
                   value={editingItem.name}
                   onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                  className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
+                  className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
                 />
               </div>
 
@@ -1137,7 +1166,7 @@ export default function MultiTenantAdminDashboard() {
                   required
                   value={editingItem.price}
                   onChange={(e) => setEditingItem({ ...editingItem, price: parseFloat(e.target.value) || 0 })}
-                  className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
+                  className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
                 />
               </div>
 
@@ -1147,7 +1176,7 @@ export default function MultiTenantAdminDashboard() {
                   type="text"
                   value={editingItem.description || ''}
                   onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
-                  className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
+                  className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
                 />
               </div>
 
@@ -1157,27 +1186,27 @@ export default function MultiTenantAdminDashboard() {
                   type="text"
                   value={editingItem.image_url || ''}
                   onChange={(e) => setEditingItem({ ...editingItem, image_url: e.target.value })}
-                  className={`w-full border rounded-xl p-2.5 text-xs ${theme.input}`}
+                  className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
                 />
               </div>
 
               <div className="flex items-center gap-4 pt-1">
-                <label className={`flex items-center gap-2 text-xs ${theme.subText}`}>
+                <label className={`flex items-center gap-2 text-xs cursor-pointer ${theme.subText}`}>
                   <input
                     type="checkbox"
                     checked={editingItem.is_veg}
                     onChange={(e) => setEditingItem({ ...editingItem, is_veg: e.target.checked })}
-                    className="rounded accent-orange-500"
+                    className="rounded accent-orange-500 cursor-pointer"
                   />
                   Vegetarian
                 </label>
 
-                <label className={`flex items-center gap-2 text-xs ${theme.subText}`}>
+                <label className={`flex items-center gap-2 text-xs cursor-pointer ${theme.subText}`}>
                   <input
                     type="checkbox"
                     checked={editingItem.is_available}
                     onChange={(e) => setEditingItem({ ...editingItem, is_available: e.target.checked })}
-                    className="rounded accent-orange-500"
+                    className="rounded accent-orange-500 cursor-pointer"
                   />
                   In Stock
                 </label>
@@ -1187,13 +1216,13 @@ export default function MultiTenantAdminDashboard() {
                 <button
                   type="button"
                   onClick={() => setEditingItem(null)}
-                  className={`flex-1 border font-bold py-2.5 rounded-xl text-xs transition ${theme.innerCard}`}
+                  className={`flex-1 border font-bold py-2.5 rounded-xl text-xs transition-all duration-300 hover:scale-[1.02] active:scale-95 ${theme.innerCard}`}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition shadow"
+                  className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all duration-300 hover:scale-[1.02] active:scale-95 shadow"
                 >
                   Save Changes
                 </button>
