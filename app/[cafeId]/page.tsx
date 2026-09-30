@@ -401,7 +401,22 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   };
 
   const myOrders = orders.filter((o) => sessionOrderIds.includes(o.id));
-  const activeMyOrder = myOrders.find((o) => o.status === 'pending' || o.status === 'preparing');
+
+  // READY DISPLAY FIX: Pending, Preparing, or Recently Completed (within 10 seconds)
+  const activeMyOrder = useMemo(() => {
+    const live = myOrders.find((o) => o.status === 'pending' || o.status === 'preparing');
+    if (live) return live;
+
+    const recentlyCompleted = myOrders.find((o) => {
+      if (o.status !== 'completed') return false;
+      const createdTime = new Date(o.created_at).getTime();
+      const now = new Date().getTime();
+      // Keeps completed ready status visible for 10 seconds
+      return now - createdTime < 10000;
+    });
+
+    return recentlyCompleted || null;
+  }, [myOrders]);
 
   const theme = {
     fontHeader: { fontFamily: "'Plus Jakarta Sans', sans-serif" },
@@ -511,12 +526,14 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
       </header>
 
       <main className="max-w-md mx-auto p-4 space-y-4">
-        {/* REALTIME DYNAMIC KITCHEN TRACKER BANNER */}
+        {/* REALTIME DYNAMIC KITCHEN TRACKER BANNER (WITH 10-SEC DISPLAY & BLINKING FOR READY) */}
         {activeMyOrder && (
           <div
             onClick={() => setShowMyOrdersModal(true)}
             className={`border p-3.5 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.01] ${
-              isDarkMode ? 'bg-orange-500/10 border-orange-500/40 text-white' : 'bg-white border-orange-300 text-slate-900 shadow-md'
+              activeMyOrder.status === 'completed'
+                ? 'bg-emerald-500/20 border-emerald-500/60 text-white shadow-xl animate-pulse'
+                : isDarkMode ? 'bg-orange-500/10 border-orange-500/40 text-white' : 'bg-white border-orange-300 text-slate-900 shadow-md'
             }`}
           >
             <div className="flex justify-between items-center mb-2">
@@ -547,7 +564,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
               <div className={`p-2 rounded-xl text-[11px] font-bold border transition ${
                 activeMyOrder.status === 'completed'
-                  ? 'bg-emerald-500 text-white border-emerald-400 shadow-md animate-bounce'
+                  ? 'bg-emerald-500 text-white border-emerald-400 shadow-lg animate-bounce font-black'
                   : 'bg-slate-100 text-slate-400 border-slate-200'
               }`}>
                 3. Ready 🍽️
@@ -556,7 +573,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           </div>
         )}
 
-        {/* SEARCH & PETPOOJA COMPACT HORIZONTAL CARDS WITH CORNER TICK BADGE */}
+        {/* SEARCH & PETPOOJA COMPACT HORIZONTAL CARDS WITH UNCLIPPED OUTLINE & CORNER TICK BADGE */}
         <div className={`border p-3.5 rounded-2xl space-y-3 ${theme.panel}`}>
           <div className="relative">
             <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${theme.subText}`} />
@@ -569,8 +586,8 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             />
           </div>
 
-          {/* COMPACT COMPOSITE CATEGORY PILLS (SLICK PETPOOJA STYLE) */}
-          <div className="flex gap-2 overflow-x-auto pb-1 pt-1 no-scrollbar scroll-smooth">
+          {/* COMPACT COMPOSITE CATEGORY PILLS (FIXED OUTLINE CLIPPING WITH PT-2 PB-2) */}
+          <div className="flex gap-2.5 overflow-x-auto pt-2 pb-2 px-1 no-scrollbar scroll-smooth">
             {categories.map((cat) => {
               const isSelected = selectedCategory === cat;
               return (
@@ -579,7 +596,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                   onClick={() => setSelectedCategory(cat)}
                   className={`relative shrink-0 px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all duration-200 border-2 font-bold text-xs ${
                     isSelected
-                      ? 'bg-white border-orange-500 text-orange-600 shadow-md scale-105'
+                      ? 'bg-white border-orange-500 text-orange-600 shadow-md scale-105 z-10'
                       : isDarkMode 
                       ? 'bg-slate-800/90 border-slate-700 text-slate-300 hover:border-orange-400' 
                       : 'bg-white/90 border-slate-200 text-slate-600 hover:border-orange-300'
