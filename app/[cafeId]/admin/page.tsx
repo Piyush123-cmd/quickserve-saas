@@ -370,6 +370,15 @@ export default function MultiTenantAdminDashboard() {
     setNewCategoryInput('');
   };
 
+  const handleDeleteCategory = (catToDelete: string) => {
+    if (!confirm(`Are you sure you want to remove the category "${catToDelete}"?`)) return;
+    const updated = customCategories.filter((cat) => cat !== catToDelete);
+    setCustomCategories(updated);
+    if (dishCategory === catToDelete) {
+      setDishCategory(updated[0] || 'Hot Brews');
+    }
+  };
+
   const handleAddDish = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cafe || !dishName || !dishPrice) return;
@@ -816,7 +825,7 @@ export default function MultiTenantAdminDashboard() {
                                         ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
                                         : 'bg-orange-500/10 text-orange-600 border border-orange-500/20'
                                     }`}>
-                                      {o.status === 'completed' ? 'Ready 🍽️' : o.status === 'preparing' ? 'Cooking 🍳' : 'Accepted 🕒'}
+                                      {o.status === 'completed' ? 'Ready 🍽️️' : o.status === 'preparing' ? 'Cooking 🍳' : 'Accepted 🕒'}
                                     </span>
                                   </td>
                                 </tr>
@@ -899,13 +908,13 @@ export default function MultiTenantAdminDashboard() {
               </div>
             )}
 
-            {/* DEDICATED MENU MANAGER TAB WITH CATEGORY TABS CREATOR */}
+            {/* DEDICATED MENU MANAGER TAB WITH CATEGORY TABS CREATOR & DELETE BUTTON */}
             {activeTab === 'menu' && (
               <div className="space-y-6 transition-all duration-300">
-                {/* CREATE NEW CATEGORY TABS MANAGER */}
+                {/* CREATE & DELETE CATEGORY TABS MANAGER */}
                 <div className={`border rounded-2xl p-5 transition-all duration-300 ${theme.card}`}>
                   <h3 className="text-sm font-bold mb-1">➕ Manage Top Horizontal Category Tabs</h3>
-                  <p className={`text-xs mb-3 ${theme.subText}`}>Add new categories (e.g., "Cold Brews", "South Indian", "Fast Food") that appear in customer UI horizontal tabs.</p>
+                  <p className={`text-xs mb-3 ${theme.subText}`}>Add or delete categories (e.g., "Cold Brews", "South Indian", "Fast Food") that appear in customer UI horizontal tabs.</p>
 
                   <div className="flex gap-2 max-w-md mb-4">
                     <input
@@ -924,11 +933,18 @@ export default function MultiTenantAdminDashboard() {
                     </button>
                   </div>
 
+                  {/* LIST OF CREATED CATEGORY TABS WITH DELETE (✕) BUTTON */}
                   <div className="flex gap-2 flex-wrap">
                     {customCategories.map((cat) => (
-                      <span key={cat} className="px-3.5 py-1.5 bg-orange-500/10 border border-orange-500/30 text-orange-500 rounded-full text-xs font-bold flex items-center gap-1.5">
-                        <span>🏷️</span>
-                        <span>{cat}</span>
+                      <span key={cat} className="px-3.5 py-1.5 bg-orange-500/10 border border-orange-500/30 text-orange-500 rounded-full text-xs font-bold flex items-center gap-2">
+                        <span>🏷️️ {cat}</span>
+                        <button
+                          onClick={() => handleDeleteCategory(cat)}
+                          className="w-4 h-4 rounded-full bg-orange-500/20 hover:bg-red-500 hover:text-white flex items-center justify-center text-[10px] transition-all ml-1"
+                          title="Delete Tab"
+                        >
+                          ✕
+                        </button>
                       </span>
                     ))}
                   </div>
