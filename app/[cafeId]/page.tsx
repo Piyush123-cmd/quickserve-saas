@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense, use, useMemo } from 'react';
+import { useEffect, useState, Suspense, use, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -26,7 +26,13 @@ import {
   FileText,
   Download,
   AlertOctagon,
-  PhoneCall
+  PhoneCall,
+  Utensils,
+  ChevronDown,
+  ChevronUp,
+  Users,
+  Home,
+  ShoppingBag
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import confetti from 'canvas-confetti';
@@ -36,8 +42,10 @@ interface MenuItem {
   name: string;
   price: number;
   description: string;
+  category?: string;
   is_veg: boolean;
   is_available: boolean;
+  is_customisable?: boolean;
   image_url?: string;
 }
 
@@ -105,6 +113,10 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'veg' | 'non-veg'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
+  const [activeTab, setActiveTab] = useState<'home' | 'menu' | 'orders' | 'pay'>('menu');
 
   // Checkout Form States
   const [customerName, setCustomerName] = useState('');
@@ -126,6 +138,12 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const [customerOrderIds, setCustomerOrderIds] = useState<string[]>([]);
 
   useEffect(() => {
+    // Inject Google Fonts dynamically
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+
     const savedTheme = localStorage.getItem('quickserve_theme');
     if (savedTheme) setIsDarkMode(savedTheme === 'dark');
 
@@ -249,7 +267,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           customer_phone: customerPhone || null,
           total_amount: totalAmount,
           payment_mode: selectedPaymentMode,
-          payment_status: selectedPaymentMode === 'upi' ? 'pending' : 'pending',
+          payment_status: 'pending',
           status: 'pending',
           special_instructions: specialInstructions.trim() || null,
         })
@@ -308,6 +326,15 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
     }, 1800);
   };
 
+  // Categories extraction
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    menuItems.forEach((item) => {
+      cats.add(item.category || 'General');
+    });
+    return ['All', ...Array.from(cats)];
+  }, [menuItems]);
+
   const filteredItems = useMemo(() => {
     return menuItems
       .filter((i) => i.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -315,13 +342,37 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
         if (filterType === 'veg') return i.is_veg;
         if (filterType === 'non-veg') return !i.is_veg;
         return true;
+      })
+      .filter((i) => {
+        if (selectedCategory === 'All') return true;
+        return (i.category || 'General') === selectedCategory;
       });
-  }, [menuItems, searchQuery, filterType]);
+  }, [menuItems, searchQuery, filterType, selectedCategory]);
+
+  const groupedItems = useMemo(() => {
+    const groups: Record<string, MenuItem[]> = {};
+    filteredItems.forEach((item) => {
+      const cat = item.category || 'Main Menu';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    });
+    return groups;
+  }, [filteredItems]);
+
+  const toggleCategoryAccordion = (cat: string) => {
+    setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
+  };
+
+  const toggleDescription = (id: string) => {
+    setExpandedDescriptions((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const myOrders = orders.filter((o) => customerOrderIds.includes(o.id));
   const activeMyOrder = myOrders.find((o) => o.status === 'pending' || o.status === 'preparing');
 
   const theme = {
+    fontHeader: { fontFamily: "'Plus Jakarta Sans', sans-serif" },
+    fontBody: { fontFamily: "'Inter', sans-serif" },
     header: isDarkMode 
       ? 'bg-slate-900/90 border-slate-800 text-white' 
       : 'bg-[#FEEEEC]/95 border-[#FAD7D2] text-slate-900 shadow-sm',
@@ -349,10 +400,10 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
   if (cafe && isSubscriptionActive === false) {
     return (
-      <div className="min-h-screen bg-[#FEEEEC] text-slate-900 flex items-center justify-center p-6 text-center">
+      <div className="min-h-screen bg-[#FEEEEC] text-slate-900 flex items-center justify-center p-6 text-center" style={theme.fontBody}>
         <div className="max-w-md bg-white border border-red-200 rounded-3xl p-8 space-y-4 shadow-2xl">
           <AlertOctagon className="w-16 h-16 text-red-500 mx-auto animate-pulse" />
-          <h2 className="text-xl font-black text-red-500">Subscription Plan Expired 🚫</h2>
+          <h2 className="text-xl font-black text-red-500" style={theme.fontHeader}>Subscription Plan Expired 🚫</h2>
           <p className="text-xs text-slate-600 leading-relaxed">
             The QuickServe SaaS active subscription for <strong className="text-slate-900">{cafe.name}</strong> is currently paused or expired.
           </p>
@@ -372,7 +423,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
   if (errorMsg) {
     return (
-      <div className="min-h-screen bg-[#FEEEEC] text-slate-900 flex items-center justify-center p-6 text-center">
+      <div className="min-h-screen bg-[#FEEEEC] text-slate-900 flex items-center justify-center p-6 text-center" style={theme.fontBody}>
         <p className="text-red-500 font-bold">{errorMsg}</p>
       </div>
     );
@@ -380,36 +431,31 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
   return (
     <div 
-      className="min-h-screen font-sans pb-32 transition-colors duration-200"
-      style={{ backgroundColor: isDarkMode ? '#020617' : '#FEEEEC' }}
+      className="min-h-screen pb-36 transition-colors duration-200"
+      style={{ backgroundColor: isDarkMode ? '#020617' : '#FEEEEC', ...theme.fontBody }}
     >
       {/* HEADER */}
       <header className={`sticky top-0 z-30 border-b backdrop-blur-md p-3.5 ${theme.header}`}>
         <div className="max-w-md mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-base font-bold flex items-center gap-1.5">
-              <span>{cafe?.name || 'QuickServe'}</span>
-              <Sparkles className="w-4 h-4 text-orange-500" />
-            </h1>
-            <p className={`text-xs ${theme.subText}`}>Table #{tableNo}</p>
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500 font-black text-sm">
+              {cafe?.name?.slice(0, 2).toUpperCase() || 'QS'}
+            </div>
+            <div>
+              <h1 className="text-base font-extrabold flex items-center gap-1" style={theme.fontHeader}>
+                <span>{cafe?.name || 'QuickServe'}</span>
+                <Sparkles className="w-4 h-4 text-orange-500" />
+              </h1>
+              <p className={`text-[11px] font-semibold ${theme.subText}`}>Table #{tableNo}</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {myOrders.length > 0 && (
-              <button
-                onClick={() => setShowMyOrdersModal(true)}
-                className="px-2.5 py-1 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 border border-orange-500/30 rounded-full text-xs font-semibold flex items-center gap-1 transition"
-              >
-                <History className="w-3.5 h-3.5" />
-                <span>Orders ({myOrders.length})</span>
-              </button>
-            )}
-
             <button
               onClick={() => setShowAssistanceModal(true)}
-              className="px-2.5 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded-full text-xs font-bold flex items-center gap-1 shadow transition"
+              className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-full text-xs font-bold flex items-center gap-1 shadow-md transition-all active:scale-95"
             >
-              <Bell className="w-3.5 h-3.5 animate-bounce" /> Call Waiter
+              <Bell className="w-3.5 h-3.5 animate-bounce" /> Waiter
             </button>
 
             <button
@@ -428,15 +474,15 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
         {activeMyOrder && (
           <div
             onClick={() => setShowMyOrdersModal(true)}
-            className={`border p-3.5 rounded-2xl cursor-pointer transition shadow-md ${
+            className={`border p-3.5 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.01] ${
               isDarkMode ? 'bg-orange-500/10 border-orange-500/40 text-white' : 'bg-white border-orange-300 text-slate-900 shadow-md'
             }`}
           >
             <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-black text-orange-500 flex items-center gap-1">
+              <span className="text-xs font-black text-orange-500 flex items-center gap-1" style={theme.fontHeader}>
                 <Flame className="w-4 h-4 animate-pulse text-orange-500" /> Live Kitchen Order Status
               </span>
-              <span className={`text-[10px] underline ${theme.subText}`}>View Ticket</span>
+              <span className={`text-[10px] underline font-bold ${theme.subText}`}>View Ticket</span>
             </div>
             
             <div className="grid grid-cols-3 gap-1.5 text-center">
@@ -469,91 +515,150 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           </div>
         )}
 
-        {/* SEARCH & FILTERS */}
+        {/* SEARCH & HORIZONTAL CATEGORY SCROLL BAR */}
         <div className={`border p-3.5 rounded-2xl space-y-3 ${theme.panel}`}>
           <div className="relative">
             <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${theme.subText}`} />
             <input
               type="text"
-              placeholder="Search dishes..."
+              placeholder="Search item..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:outline-none focus:border-orange-500 ${theme.input}`}
+              className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:outline-none focus:border-orange-500 transition ${theme.input}`}
             />
           </div>
 
-          <div className="flex gap-2">
+          {/* HORIZONTAL CATEGORY PILLS BAR (PETPOOJA STYLE) */}
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all duration-300 ${
+                  selectedCategory === cat
+                    ? 'bg-orange-500 text-white shadow-md scale-105'
+                    : `bg-orange-500/10 text-orange-600 hover:bg-orange-500/20`
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* VEG / NON-VEG TOGGLE BUTTONS */}
+          <div className="flex gap-2 pt-1 border-t border-orange-200/30">
             <button
               onClick={() => setFilterType('all')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${filterType === 'all' ? 'bg-orange-500 text-white shadow' : 'bg-orange-500/10 text-orange-600'}`}
+              className={`px-3 py-1 rounded-lg text-[11px] font-bold transition ${filterType === 'all' ? 'bg-slate-900 text-white' : 'text-slate-500'}`}
             >
               All ({menuItems.length})
             </button>
             <button
               onClick={() => setFilterType('veg')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${filterType === 'veg' ? 'bg-emerald-500 text-white shadow' : 'bg-emerald-500/10 text-emerald-600'}`}
+              className={`px-3 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition ${filterType === 'veg' ? 'bg-emerald-600 text-white' : 'text-emerald-600'}`}
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500" /> Veg
             </button>
             <button
               onClick={() => setFilterType('non-veg')}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition ${filterType === 'non-veg' ? 'bg-red-500 text-white shadow' : 'bg-red-500/10 text-red-600'}`}
+              className={`px-3 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition ${filterType === 'non-veg' ? 'bg-red-600 text-white' : 'text-red-600'}`}
             >
               <span className="w-2 h-2 rounded-full bg-red-500" /> Non-Veg
             </button>
           </div>
         </div>
 
-        {/* DISHES LIST WITH IMAGES */}
-        <div className="space-y-3">
-          {filteredItems.length === 0 ? (
+        {/* ACCORDION CATEGORIZED DISHES LIST WITH IMAGES & CUSTOMISATION */}
+        <div className="space-y-4">
+          {Object.keys(groupedItems).length === 0 ? (
             <div className={`text-center py-12 text-xs ${theme.subText}`}>No dishes found.</div>
           ) : (
-            filteredItems.map((item) => {
-              const inCart = cart.find((i) => i.item.id === item.id);
-              const imgUrl = item.image_url || getFallbackImage(item.name);
-
+            Object.entries(groupedItems).map(([catName, items]) => {
+              const isCollapsed = collapsedCategories[catName];
               return (
-                <div key={item.id} className={`border rounded-2xl p-3.5 flex items-center justify-between gap-3 ${theme.card}`}>
-                  <div className="flex-1 pr-1">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.is_veg ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                      <h3 className="font-bold text-sm">{item.name}</h3>
-                    </div>
-                    <div className="text-sm font-black text-orange-500">₹{item.price}</div>
-                    {item.description && (
-                      <p className={`text-xs mt-1 line-clamp-2 leading-relaxed ${theme.subText}`}>{item.description}</p>
-                    )}
-                  </div>
+                <div key={catName} className="space-y-3">
+                  {/* ACCORDION HEADER */}
+                  <button
+                    onClick={() => toggleCategoryAccordion(catName)}
+                    className="w-full flex justify-between items-center py-2 px-1 border-b border-orange-200/40 text-left transition"
+                  >
+                    <h2 className="text-sm font-extrabold text-orange-500 flex items-center gap-2" style={theme.fontHeader}>
+                      <Utensils className="w-4 h-4" /> {catName} ({items.length})
+                    </h2>
+                    {isCollapsed ? <ChevronDown className="w-4 h-4 text-orange-500" /> : <ChevronUp className="w-4 h-4 text-orange-500" />}
+                  </button>
 
-                  <div className="relative shrink-0 flex flex-col items-center">
-                    <img
-                      src={imgUrl}
-                      alt={item.name}
-                      className="w-24 h-24 object-cover rounded-2xl border border-orange-200/50 shadow-sm"
-                      loading="lazy"
-                    />
-                    <div className="absolute -bottom-2">
-                      {inCart ? (
-                        <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-700 text-white rounded-xl px-2 py-1 shadow-lg">
-                          <button onClick={() => removeFromCart(item.id)} className="p-0.5 hover:text-orange-400">
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                          <span className="text-xs font-bold w-4 text-center">{inCart.quantity}</span>
-                          <button onClick={() => addToCart(item)} className="p-0.5 text-orange-500">
-                            <Plus className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => addToCart(item)}
-                          className="px-4 py-1 bg-white hover:bg-orange-500 text-slate-900 hover:text-white border border-orange-300 shadow-md font-black text-xs rounded-xl uppercase tracking-wider transition"
-                        >
-                          ADD +
-                        </button>
-                      )}
+                  {!isCollapsed && (
+                    <div className="space-y-3">
+                      {items.map((item) => {
+                        const inCart = cart.find((i) => i.item.id === item.id);
+                        const imgUrl = item.image_url || getFallbackImage(item.name);
+                        const isDescExpanded = expandedDescriptions[item.id];
+
+                        return (
+                          <div key={item.id} className={`border rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all duration-300 hover:shadow-lg ${theme.card}`}>
+                            <div className="flex-1 pr-1">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.is_veg ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                                <h3 className="font-extrabold text-sm" style={theme.fontHeader}>{item.name}</h3>
+                              </div>
+
+                              <div className="text-sm font-black text-orange-500">₹{item.price.toFixed(2)}</div>
+
+                              {item.description && (
+                                <div className="mt-1">
+                                  <p className={`text-xs leading-relaxed ${isDescExpanded ? '' : 'line-clamp-2'} ${theme.subText}`}>
+                                    {item.description}
+                                  </p>
+                                  {item.description.length > 60 && (
+                                    <button
+                                      onClick={() => toggleDescription(item.id)}
+                                      className="text-[10px] font-bold text-orange-500 mt-0.5 hover:underline"
+                                    >
+                                      {isDescExpanded ? 'Show Less' : 'Read More'}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="relative shrink-0 flex flex-col items-center">
+                              <img
+                                src={imgUrl}
+                                alt={item.name}
+                                className="w-24 h-24 object-cover rounded-2xl border border-orange-200/50 shadow-sm"
+                                loading="lazy"
+                              />
+                              <div className="absolute -bottom-2 flex flex-col items-center">
+                                {inCart ? (
+                                  <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-700 text-white rounded-xl px-2.5 py-1 shadow-lg">
+                                    <button onClick={() => removeFromCart(item.id)} className="p-0.5 hover:text-orange-400">
+                                      <Minus className="w-3.5 h-3.5" />
+                                    </button>
+                                    <span className="text-xs font-bold w-4 text-center">{inCart.quantity}</span>
+                                    <button onClick={() => addToCart(item)} className="p-0.5 text-orange-500">
+                                      <Plus className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => addToCart(item)}
+                                    className="px-4 py-1.5 bg-white hover:bg-orange-500 text-orange-600 hover:text-white border border-orange-400 shadow-md font-extrabold text-xs rounded-xl uppercase tracking-wider transition-all duration-300 hover:scale-105"
+                                  >
+                                    + ADD
+                                  </button>
+                                )}
+
+                                {item.is_customisable && (
+                                  <span className="text-[9px] font-bold text-slate-500 mt-1">Customisable</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })
@@ -561,27 +666,77 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
         </div>
       </main>
 
-      {/* BOTTOM CART BAR */}
+      {/* BOTTOM FLOATING CART BAR */}
       {cart.length > 0 && (
-        <div className={`fixed bottom-0 left-0 right-0 p-4 border-t z-40 backdrop-blur-lg ${isDarkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-orange-200 shadow-2xl'}`}>
+        <div className={`fixed bottom-16 left-0 right-0 p-3 border-t z-40 backdrop-blur-lg transition-all ${isDarkMode ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-orange-200 shadow-2xl'}`}>
           <div className="max-w-md mx-auto">
             <button
               onClick={() => setShowCheckoutModal(true)}
-              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-xl shadow-lg flex items-center justify-between px-5 text-sm transition active:scale-98"
+              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-extrabold rounded-2xl shadow-xl flex items-center justify-between px-5 text-sm transition-all duration-300 hover:scale-[1.01] active:scale-95"
+              style={theme.fontHeader}
             >
               <span>{cart.reduce((s, i) => s + i.quantity, 0)} Items | ₹{totalAmount}</span>
-              <span>Proceed to Pay →</span>
+              <span className="flex items-center gap-1">Proceed to Pay →</span>
             </button>
           </div>
         </div>
       )}
 
+      {/* PERSISTENT BOTTOM NAVIGATION BAR (PETPOOJA STYLE) */}
+      <nav className={`fixed bottom-0 left-0 right-0 border-t z-50 backdrop-blur-md px-6 py-2.5 ${theme.header}`}>
+        <div className="max-w-md mx-auto flex justify-between items-center text-center">
+          <button
+            onClick={() => setActiveTab('menu')}
+            className={`flex flex-col items-center gap-0.5 text-[10px] font-bold transition ${
+              activeTab === 'menu' ? 'text-orange-500 scale-105' : theme.subText
+            }`}
+          >
+            <Utensils className="w-5 h-5" />
+            <span>Menu</span>
+          </button>
+
+          <button
+            onClick={() => setShowMyOrdersModal(true)}
+            className={`flex flex-col items-center gap-0.5 text-[10px] font-bold relative transition ${
+              activeTab === 'orders' ? 'text-orange-500 scale-105' : theme.subText
+            }`}
+          >
+            <ShoppingBag className="w-5 h-5" />
+            <span>Orders ({myOrders.length})</span>
+            {myOrders.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                {myOrders.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setShowAssistanceModal(true)}
+            className={`flex flex-col items-center gap-0.5 text-[10px] font-bold transition ${theme.subText}`}
+          >
+            <Bell className="w-5 h-5" />
+            <span>Call Waiter</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (activeMyOrder) setShowBillModal(activeMyOrder);
+              else alert('No active bill available.');
+            }}
+            className={`flex flex-col items-center gap-0.5 text-[10px] font-bold transition ${theme.subText}`}
+          >
+            <FileText className="w-5 h-5" />
+            <span>Pay Bill</span>
+          </button>
+        </div>
+      </nav>
+
       {/* CHECKOUT MODAL */}
       {showCheckoutModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`border w-full max-w-sm rounded-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto ${theme.panel}`}>
+          <div className={`border w-full max-w-sm rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto ${theme.panel}`}>
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="font-bold text-sm">Checkout & Pay</h3>
+              <h3 className="font-extrabold text-sm" style={theme.fontHeader}>Checkout & Pay</h3>
               <button onClick={() => setShowCheckoutModal(false)} className={theme.subText}>
                 <X className="w-4 h-4" />
               </button>
@@ -623,7 +778,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                   setSelectedPaymentMode('cash');
                   setUpiPaymentConfirmed(false);
                 }}
-                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-xs font-semibold transition ${selectedPaymentMode === 'cash' ? 'border-orange-500 bg-orange-500/10 text-orange-600' : 'border-slate-300 bg-slate-50 text-slate-500'}`}
+                className={`p-3 rounded-2xl border flex flex-col items-center gap-1.5 text-xs font-extrabold transition ${selectedPaymentMode === 'cash' ? 'border-orange-500 bg-orange-500/10 text-orange-600' : 'border-slate-300 bg-slate-50 text-slate-500'}`}
               >
                 <Banknote className="w-5 h-5" />
                 <span>Pay Counter (Cash)</span>
@@ -632,7 +787,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
               <button
                 type="button"
                 onClick={() => setSelectedPaymentMode('upi')}
-                className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-xs font-semibold transition ${selectedPaymentMode === 'upi' ? 'border-orange-500 bg-orange-500/10 text-orange-600' : 'border-slate-300 bg-slate-50 text-slate-500'}`}
+                className={`p-3 rounded-2xl border flex flex-col items-center gap-1.5 text-xs font-extrabold transition ${selectedPaymentMode === 'upi' ? 'border-orange-500 bg-orange-500/10 text-orange-600' : 'border-slate-300 bg-slate-50 text-slate-500'}`}
               >
                 <CreditCard className="w-5 h-5" />
                 <span>Pay via UPI QR</span>
@@ -640,16 +795,16 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             </div>
 
             {selectedPaymentMode === 'upi' && (
-              <div className="p-4 rounded-xl border bg-white text-slate-900 text-center space-y-3 shadow-md">
-                <p className="text-xs font-bold text-orange-600">Scan & Pay ₹{totalAmount}</p>
-                <div className="p-2 bg-white rounded-xl inline-block border border-orange-200 shadow-sm">
+              <div className="p-4 rounded-2xl border bg-white text-slate-900 text-center space-y-3 shadow-md">
+                <p className="text-xs font-bold text-orange-600" style={theme.fontHeader}>Scan & Pay ₹{totalAmount}</p>
+                <div className="p-2 bg-white rounded-2xl inline-block border border-orange-200 shadow-sm">
                   <QRCodeSVG value={upiPaymentUrl} size={150} />
                 </div>
                 <p className="text-[11px] font-mono text-slate-700 font-bold">{cafeUPI}</p>
                 <a
                   href={upiPaymentUrl}
                   onClick={() => setUpiPaymentConfirmed(true)}
-                  className="block w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow transition"
+                  className="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow transition"
                 >
                   Pay Directly via GPay / PhonePe App
                 </a>
@@ -673,7 +828,8 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             <button
               onClick={handlePlaceOrder}
               disabled={submitting || (selectedPaymentMode === 'upi' && !upiPaymentConfirmed)}
-              className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-2xl text-xs font-extrabold transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+              style={theme.fontHeader}
             >
               {submitting 
                 ? 'Placing Order...' 
@@ -692,7 +848,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto animate-bounce" />
             
             <div>
-              <h2 className="text-xl font-black text-orange-500">Order Placed Successfully! 🍳</h2>
+              <h2 className="text-xl font-black text-orange-500" style={theme.fontHeader}>Order Placed Successfully! 🍳</h2>
               <p className="text-xs text-slate-300 mt-1">Table #{tableNo} • Order status: Accepted 🕒</p>
             </div>
 
@@ -735,7 +891,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           <div className="bg-white text-slate-900 w-full max-w-sm rounded-3xl p-6 space-y-4 shadow-2xl print:m-0 print:shadow-none">
             <div className="flex justify-between items-start border-b pb-3">
               <div>
-                <h2 className="font-black text-lg text-slate-900">{cafe?.name || 'QuickServe Cafe'}</h2>
+                <h2 className="font-black text-lg text-slate-900" style={theme.fontHeader}>{cafe?.name || 'QuickServe Cafe'}</h2>
                 <p className="text-[10px] text-slate-500">Digital Tax Invoice & Receipt</p>
               </div>
               <button onClick={() => setShowBillModal(null)} className="text-slate-400 hover:text-slate-700 print:hidden">
@@ -783,9 +939,9 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
       {/* CALL WAITER MODAL */}
       {showAssistanceModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`border w-full max-w-xs rounded-2xl p-5 space-y-4 text-center ${theme.panel}`}>
+          <div className={`border w-full max-w-xs rounded-3xl p-5 space-y-4 text-center ${theme.panel}`}>
             <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="font-bold text-sm">Table #{tableNo} Assistance</h3>
+              <h3 className="font-bold text-sm" style={theme.fontHeader}>Table #{tableNo} Assistance</h3>
               <button onClick={() => setShowAssistanceModal(false)} className={theme.subText}>
                 <X className="w-4 h-4" />
               </button>
@@ -801,21 +957,21 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
               <div className="grid grid-cols-1 gap-2 pt-1">
                 <button
                   onClick={() => handleSendAssistance('Call Waiter')}
-                  className={`p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-800'}`}
+                  className={`p-3 border rounded-2xl flex items-center gap-3 text-xs font-bold transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-800'}`}
                 >
                   <UserCheck className="w-4 h-4 text-orange-500" />
                   <span>Call Waiter to Table</span>
                 </button>
                 <button
                   onClick={() => handleSendAssistance('Bring Drinking Water')}
-                  className={`p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-800'}`}
+                  className={`p-3 border rounded-2xl flex items-center gap-3 text-xs font-bold transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-800'}`}
                 >
                   <Droplets className="w-4 h-4 text-blue-500" />
                   <span>Need Drinking Water</span>
                 </button>
                 <button
                   onClick={() => handleSendAssistance('Bring Table Bill')}
-                  className={`p-3 border rounded-xl flex items-center gap-3 text-xs font-semibold transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-800'}`}
+                  className={`p-3 border rounded-2xl flex items-center gap-3 text-xs font-bold transition ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-800'}`}
                 >
                   <Receipt className="w-4 h-4 text-emerald-500" />
                   <span>Request Final Bill</span>
@@ -829,9 +985,9 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
       {/* MY ORDERS MODAL */}
       {showMyOrdersModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`border w-full max-w-md rounded-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto ${theme.panel}`}>
+          <div className={`border w-full max-w-md rounded-3xl p-5 space-y-4 max-h-[85vh] overflow-y-auto ${theme.panel}`}>
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="font-bold text-sm flex items-center gap-1.5">
+              <h3 className="font-bold text-sm flex items-center gap-1.5" style={theme.fontHeader}>
                 <History className="w-4 h-4 text-orange-500" /> My Orders (Table #{tableNo})
               </h3>
               <button onClick={() => setShowMyOrdersModal(false)} className={theme.subText}>
@@ -844,7 +1000,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             ) : (
               <div className="space-y-3">
                 {myOrders.map((ord, idx) => (
-                  <div key={ord.id} className={`border rounded-xl p-3.5 space-y-2 ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-900'}`}>
+                  <div key={ord.id} className={`border rounded-2xl p-3.5 space-y-2 ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-[#FFF7F2] border-[#FAD7D2] text-slate-900'}`}>
                     <div className="flex justify-between items-center">
                       <span className="text-xs font-bold">Order #{myOrders.length - idx}</span>
                       <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase border ${
