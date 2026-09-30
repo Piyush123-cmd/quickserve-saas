@@ -106,7 +106,6 @@ export default function MultiTenantAdminDashboard() {
   const [activeTab, setActiveTab] = useState<'admin' | 'kitchen' | 'menu' | 'qrcodes'>('admin');
   const [timeFilter, setTimeFilter] = useState<'today' | 'yesterday' | '7days' | 'all'>('today');
   
-  // Theme state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -120,10 +119,18 @@ export default function MultiTenantAdminDashboard() {
   const [pinInput, setPinInput] = useState<string>('');
   const [pinError, setPinError] = useState<string>('');
 
+  // Cafe Logo Settings State
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+  const [newLogoUrl, setNewLogoUrl] = useState<string>('');
+
+  // Custom Category Tabs Management
+  const [customCategories, setCustomCategories] = useState<string[]>(['Hot Brews', 'Cold Beverages', 'Fast Food', 'Snacks & Starters', 'Desserts']);
+  const [newCategoryInput, setNewCategoryInput] = useState<string>('');
+
   // Dish Form State
   const [dishName, setDishName] = useState('');
   const [dishPrice, setDishPrice] = useState('');
-  const [dishCategory, setDishCategory] = useState('');
+  const [dishCategory, setDishCategory] = useState('Hot Brews');
   const [dishDesc, setDishDesc] = useState('');
   const [dishImg, setDishImg] = useState('');
   const [isVeg, setIsVeg] = useState(true);
@@ -151,6 +158,7 @@ export default function MultiTenantAdminDashboard() {
         return;
       }
       setCafe(cafeData);
+      setNewLogoUrl(cafeData.logo_url || '');
 
       const storedAdminSession = localStorage.getItem(`qs_admin_session_${cafeData.id}`);
       const storedKitchenSession = localStorage.getItem(`qs_kitchen_session_${cafeData.id}`);
@@ -179,7 +187,14 @@ export default function MultiTenantAdminDashboard() {
         .eq('cafe_id', cafeData.id)
         .order('created_at', { ascending: false });
 
-      if (menuData) setMenuItems(menuData);
+      if (menuData) {
+        setMenuItems(menuData);
+        const existingCats = new Set(customCategories);
+        menuData.forEach((i) => {
+          if (i.category && i.category.trim() !== '') existingCats.add(i.category.trim());
+        });
+        setCustomCategories(Array.from(existingCats));
+      }
 
       const { data: reqData } = await supabase
         .from('service_requests')
@@ -332,6 +347,29 @@ export default function MultiTenantAdminDashboard() {
     loadData();
   };
 
+  const handleSaveLogo = async () => {
+    if (!cafe) return;
+    try {
+      const { error } = await supabase.from('cafes').update({ logo_url: newLogoUrl }).eq('id', cafe.id);
+      if (error) throw error;
+      alert('Cafe Logo updated successfully!');
+      setShowSettingsModal(false);
+      loadData();
+    } catch (err: any) {
+      alert('Failed to update logo: ' + err.message);
+    }
+  };
+
+  const handleAddCategory = () => {
+    const trimmed = newCategoryInput.trim();
+    if (!trimmed) return;
+    if (!customCategories.includes(trimmed)) {
+      setCustomCategories([...customCategories, trimmed]);
+      setDishCategory(trimmed);
+    }
+    setNewCategoryInput('');
+  };
+
   const handleAddDish = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cafe || !dishName || !dishPrice) return;
@@ -342,7 +380,7 @@ export default function MultiTenantAdminDashboard() {
         cafe_id: cafe.id,
         name: dishName,
         price: parseFloat(dishPrice),
-        category: dishCategory.trim() || 'Main Menu',
+        category: dishCategory || 'Main Menu',
         description: dishDesc || null,
         image_url: dishImg || null,
         is_veg: isVeg,
@@ -353,7 +391,6 @@ export default function MultiTenantAdminDashboard() {
       alert('New dish added successfully!');
       setDishName('');
       setDishPrice('');
-      setDishCategory('');
       setDishDesc('');
       setDishImg('');
       loadData();
@@ -555,11 +592,23 @@ export default function MultiTenantAdminDashboard() {
     <div className={`min-h-screen font-sans pb-12 transition-colors duration-300 ${theme.bg}`}>
       <header className={`border-b px-6 py-4 flex flex-wrap items-center justify-between gap-4 transition-all duration-300 ${theme.header}`}>
         <div className="flex items-center gap-3">
-          {cafe.logo_url && (
+          {cafe.logo_url ? (
             <img src={cafe.logo_url} alt={cafe.name} className="w-10 h-10 rounded-xl object-cover border border-orange-500/30" />
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500 font-black text-sm">
+              {cafe.name.slice(0, 2).toUpperCase()}
+            </div>
           )}
           <div>
-            <h1 className="text-xl font-extrabold text-orange-500">{cafe.name}</h1>
+            <h1 className="text-xl font-extrabold text-orange-500 flex items-center gap-2">
+              <span>{cafe.name}</span>
+              <button
+                onClick={() => setShowSettingsModal(true)}
+                className="text-[11px] px-2.5 py-1 bg-orange-500/10 text-orange-500 border border-orange-500/30 rounded-lg hover:bg-orange-500 hover:text-white transition font-bold"
+              >
+                ⚙ Cafe Logo
+              </button>
+            </h1>
             <p className={`text-xs ${theme.subText}`}>Master Owner Dashboard & Live KDS</p>
           </div>
         </div>
@@ -573,7 +622,7 @@ export default function MultiTenantAdminDashboard() {
                 : 'bg-white text-orange-600 border-[#FAD7D2] shadow-sm'
             }`}
           >
-            {isDarkMode ? '☀️️ Light Mode' : '🌙 Dark Mode'}
+            {isDarkMode ? '☀ Light Mode' : '🌙 Dark Mode'}
           </button>
 
           <button
@@ -611,7 +660,7 @@ export default function MultiTenantAdminDashboard() {
                 activeTab === 'menu' ? 'bg-orange-500 text-white shadow-lg' : `${theme.subText} hover:text-orange-500`
               }`}
             >
-              📖 Menu Manager ({menuItems.length}) {!isAdminUnlocked && '🔒'}
+              📖 Menu & Tabs ({menuItems.length}) {!isAdminUnlocked && '🔒'}
             </button>
 
             <button
@@ -779,7 +828,7 @@ export default function MultiTenantAdminDashboard() {
                     </div>
                   </div>
 
-                  {/* ADD NEW DISH FORM WITH CATEGORY */}
+                  {/* ADD NEW DISH FORM WITH CUSTOM CATEGORY SELECTOR */}
                   <div className={`border rounded-2xl p-5 transition-all duration-300 ${theme.card}`}>
                     <h3 className="text-base font-bold mb-4">+ Add New Menu Dish</h3>
                     <form onSubmit={handleAddDish} className="space-y-3">
@@ -799,14 +848,20 @@ export default function MultiTenantAdminDashboard() {
                         onChange={(e) => setDishPrice(e.target.value)}
                         className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
                       />
-                      <input
-                        type="text"
-                        placeholder="Category (e.g. Hot Brews, Fast Food) *"
-                        required
-                        value={dishCategory}
-                        onChange={(e) => setDishCategory(e.target.value)}
-                        className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
-                      />
+
+                      <div>
+                        <label className={`text-[10px] font-bold block mb-1 ${theme.subText}`}>Select Category Tab *</label>
+                        <select
+                          value={dishCategory}
+                          onChange={(e) => setDishCategory(e.target.value)}
+                          className={`w-full border rounded-xl p-2.5 text-xs font-bold transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
+                        >
+                          {customCategories.map((cat) => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+
                       <input
                         type="text"
                         placeholder="Description (Optional)"
@@ -844,20 +899,52 @@ export default function MultiTenantAdminDashboard() {
               </div>
             )}
 
-            {/* DEDICATED MENU MANAGER TAB WITH CATEGORY & IMAGES */}
+            {/* DEDICATED MENU MANAGER TAB WITH CATEGORY TABS CREATOR */}
             {activeTab === 'menu' && (
               <div className="space-y-6 transition-all duration-300">
+                {/* CREATE NEW CATEGORY TABS MANAGER */}
+                <div className={`border rounded-2xl p-5 transition-all duration-300 ${theme.card}`}>
+                  <h3 className="text-sm font-bold mb-1">➕ Manage Top Horizontal Category Tabs</h3>
+                  <p className={`text-xs mb-3 ${theme.subText}`}>Add new categories (e.g., "Cold Brews", "South Indian", "Fast Food") that appear in customer UI horizontal tabs.</p>
+
+                  <div className="flex gap-2 max-w-md mb-4">
+                    <input
+                      type="text"
+                      placeholder="Enter new Category Tab Name..."
+                      value={newCategoryInput}
+                      onChange={(e) => setNewCategoryInput(e.target.value)}
+                      className={`flex-1 border rounded-xl p-2.5 text-xs focus:outline-none focus:border-orange-500 ${theme.input}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddCategory}
+                      className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow transition-all duration-300 hover:scale-105"
+                    >
+                      + Add Tab
+                    </button>
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap">
+                    {customCategories.map((cat) => (
+                      <span key={cat} className="px-3.5 py-1.5 bg-orange-500/10 border border-orange-500/30 text-orange-500 rounded-full text-xs font-bold flex items-center gap-1.5">
+                        <span>🏷️</span>
+                        <span>{cat}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="flex justify-between items-center flex-wrap gap-4">
                   <div>
-                    <h2 className="text-lg font-bold">Menu Items Manager ({menuItems.length})</h2>
-                    <p className={`text-xs ${theme.subText}`}>Toggle stock availability, edit dish details, or remove menu items in real time.</p>
+                    <h2 className="text-lg font-bold">Menu Items ({menuItems.length})</h2>
+                    <p className={`text-xs ${theme.subText}`}>Toggle availability, edit dish details or assign categories.</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {menuItems.length === 0 ? (
                     <div className={`col-span-full border rounded-2xl p-8 text-center text-xs ${theme.card}`}>
-                      No dishes added to menu yet. Add items from Analytics tab.
+                      No dishes added to menu yet. Add items using form above.
                     </div>
                   ) : (
                     menuItems.map((item) => {
@@ -880,7 +967,7 @@ export default function MultiTenantAdminDashboard() {
                               </div>
 
                               <span className="inline-block mt-1 text-[10px] font-bold bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded-md">
-                                {item.category || 'Main Menu'}
+                                Tab: {item.category || 'Main Menu'}
                               </span>
 
                               {item.description && (
@@ -905,7 +992,7 @@ export default function MultiTenantAdminDashboard() {
                               onClick={() => setEditingItem(item)}
                               className={`px-3 py-2 border rounded-xl text-xs font-bold transition-all duration-300 hover:scale-105 ${theme.innerCard}`}
                             >
-                              ✏️️ Edit
+                              ✏ Edit
                             </button>
 
                             <button
@@ -926,7 +1013,6 @@ export default function MultiTenantAdminDashboard() {
 
             {activeTab === 'kitchen' && (
               <div className="space-y-6 transition-all duration-300">
-                {/* ACTIVE WAITER ASSISTANCE REQUESTS */}
                 {serviceRequests.length > 0 && (
                   <div className="space-y-2">
                     <h3 className="text-xs font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2">
@@ -953,9 +1039,7 @@ export default function MultiTenantAdminDashboard() {
 
                 <h2 className="text-lg font-bold">Live Kitchen Display System (KDS)</h2>
 
-                {/* 2-COLUMN PROGRESSIVE KITCHEN WORKFLOW */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* COLUMN 1: STEP 1 - INCOMING ACCEPTED ORDERS */}
                   <div className="space-y-3">
                     <div className={`flex justify-between items-center p-3 rounded-xl border ${theme.card}`}>
                       <h3 className="text-xs font-extrabold text-orange-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -1004,7 +1088,6 @@ export default function MultiTenantAdminDashboard() {
                     )}
                   </div>
 
-                  {/* COLUMN 2: STEP 2 - CURRENTLY COOKING */}
                   <div className="space-y-3">
                     <div className={`flex justify-between items-center p-3 rounded-xl border ${theme.card}`}>
                       <h3 className="text-xs font-extrabold text-amber-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -1061,13 +1144,13 @@ export default function MultiTenantAdminDashboard() {
                 <div className="flex justify-between items-center flex-wrap gap-4">
                   <div>
                     <h2 className="text-lg font-bold">Table QR Code Generator & Printer</h2>
-                    <p className={`text-xs ${theme.subText}`}>Generate, test, and print branded QR cards for every table in your cafe.</p>
+                    <p className={`text-xs ${theme.subText}`}>Generate and print QR cards for every table.</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className={`border rounded-2xl p-5 space-y-4 ${theme.card}`}>
-                    <h3 className="text-sm font-bold">Select or Enter Table Number</h3>
+                    <h3 className="text-sm font-bold">Select Table Number</h3>
                     
                     <div>
                       <label className={`text-xs mb-1 block ${theme.subText}`}>Table Number</label>
@@ -1161,7 +1244,7 @@ export default function MultiTenantAdminDashboard() {
         )}
       </main>
 
-      {/* EDIT DISH MODAL WITH CATEGORY */}
+      {/* EDIT DISH MODAL */}
       {editingItem && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300 animate-fadeIn">
           <div className={`border w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl transition-all duration-300 transform scale-100 ${theme.card}`}>
@@ -1194,14 +1277,16 @@ export default function MultiTenantAdminDashboard() {
               </div>
 
               <div>
-                <label className={`text-[11px] block mb-1 ${theme.subText}`}>Category</label>
-                <input
-                  type="text"
-                  required
+                <label className={`text-[11px] block mb-1 ${theme.subText}`}>Category Tab</label>
+                <select
                   value={editingItem.category || ''}
                   onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
-                  className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
-                />
+                  className={`w-full border rounded-xl p-2.5 text-xs font-bold transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
+                >
+                  {customCategories.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -1262,6 +1347,53 @@ export default function MultiTenantAdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CAFE LOGO SETTINGS MODAL */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className={`border w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-2xl ${theme.card}`}>
+            <h3 className="font-bold text-sm flex items-center gap-2">
+              <span>⚙️</span>
+              <span>Cafe Branding & Logo Settings</span>
+            </h3>
+
+            <div>
+              <label className={`text-xs block mb-1 ${theme.subText}`}>Cafe Logo Image URL</label>
+              <input
+                type="text"
+                placeholder="https://example.com/logo.png"
+                value={newLogoUrl}
+                onChange={(e) => setNewLogoUrl(e.target.value)}
+                className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
+              />
+            </div>
+
+            {newLogoUrl && (
+              <div className="text-center">
+                <p className={`text-[10px] mb-1 ${theme.subText}`}>Preview:</p>
+                <img src={newLogoUrl} alt="Logo Preview" className="w-12 h-12 rounded-xl object-cover border mx-auto" />
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(false)}
+                className="flex-1 border py-2 rounded-xl text-xs font-bold transition-all hover:bg-gray-500/10"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveLogo}
+                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-xl text-xs transition-all shadow"
+              >
+                Save Logo
+              </button>
+            </div>
           </div>
         </div>
       )}

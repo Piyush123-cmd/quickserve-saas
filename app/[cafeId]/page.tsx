@@ -30,7 +30,8 @@ import {
   Utensils,
   ChevronDown,
   ChevronUp,
-  ShoppingBag
+  ShoppingBag,
+  Check
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import confetti from 'canvas-confetti';
@@ -553,7 +554,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           </div>
         )}
 
-        {/* SEARCH & HORIZONTAL SCROLLABLE CATEGORIES WITH ICONS */}
+        {/* SEARCH & PETPOOJA STYLE OUTLINE CATEGORIES WITH TOP-RIGHT TICK BADGE */}
         <div className={`border p-3.5 rounded-2xl space-y-3 ${theme.panel}`}>
           <div className="relative">
             <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${theme.subText}`} />
@@ -566,22 +567,36 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             />
           </div>
 
-          {/* DYNAMIC ICON-BASED HORIZONTAL SCROLL TABS */}
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all duration-300 ${
-                  selectedCategory === cat
-                    ? 'bg-orange-500 text-white shadow-md scale-105'
-                    : `bg-orange-500/10 text-orange-600 hover:bg-orange-500/20`
-                }`}
-              >
-                <span>{cat === 'All' ? '✨' : getCategoryIcon(cat)}</span>
-                <span>{cat}</span>
-              </button>
-            ))}
+          {/* PETPOOJA STYLE HORIZONTAL SCROLLABLE CARDS WITH OUTLINE & TOP-RIGHT TICK BADGE */}
+          <div className="flex gap-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth">
+            {categories.map((cat) => {
+              const isSelected = selectedCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`relative min-w-[90px] h-[75px] rounded-2xl p-2.5 flex flex-col items-center justify-center gap-1 transition-all duration-200 border-2 ${
+                    isSelected
+                      ? 'bg-white border-orange-500 shadow-md text-orange-600 scale-105'
+                      : isDarkMode 
+                      ? 'bg-slate-800/90 border-slate-700 text-slate-300 hover:border-orange-400' 
+                      : 'bg-white/90 border-slate-200 text-slate-600 hover:border-orange-300'
+                  }`}
+                >
+                  {/* TOP-RIGHT CORNER TICK BADGE */}
+                  {isSelected && (
+                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md animate-in zoom-in-50">
+                      <Check className="w-3 h-3 stroke-[3]" />
+                    </div>
+                  )}
+
+                  <span className="text-xl">{cat === 'All' ? '✨' : getCategoryIcon(cat)}</span>
+                  <span className="text-[11px] font-bold tracking-tight text-center line-clamp-1">
+                    {cat}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* VEG / NON-VEG STANDARD FSSAI TOGGLES */}
