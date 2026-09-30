@@ -56,6 +56,7 @@ interface CafeDetails {
   id: string;
   name: string;
   slug: string;
+  logo_url?: string;
   upi_id?: string;
   is_active?: boolean;
   is_subscription_active?: boolean;
@@ -82,6 +83,18 @@ interface Order {
   }[];
 }
 
+function getCategoryIcon(categoryName: string): string {
+  const cat = categoryName.toLowerCase();
+  if (cat.includes('drink') || cat.includes('beverage') || cat.includes('brew')) return '🥤';
+  if (cat.includes('coffee') || cat.includes('tea') || cat.includes('chai')) return '☕';
+  if (cat.includes('fast food') || cat.includes('burger') || cat.includes('pizza')) return '🍔';
+  if (cat.includes('snack') || cat.includes('starter') || cat.includes('fry')) return '🍟';
+  if (cat.includes('dessert') || cat.includes('cake') || cat.includes('sweet')) return '🍰';
+  if (cat.includes('salad') || cat.includes('healthy')) return '🥗';
+  if (cat.includes('egg')) return '🍳';
+  return '🍽️';
+}
+
 function getFallbackImage(name: string): string {
   const n = name.toLowerCase();
   if (n.includes('tea') || n.includes('chai')) return 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=300&auto=format&fit=crop&q=60';
@@ -90,10 +103,21 @@ function getFallbackImage(name: string): string {
   if (n.includes('pizza')) return 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=300&auto=format&fit=crop&q=60';
   if (n.includes('fry') || n.includes('fries')) return 'https://images.unsplash.com/photo-1576107232684-1279f3908594?w=300&auto=format&fit=crop&q=60';
   if (n.includes('sandwich')) return 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=300&auto=format&fit=crop&q=60';
-  if (n.includes('samosa')) return 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=300&auto=format&fit=crop&q=60';
   if (n.includes('pasta')) return 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=300&auto=format&fit=crop&q=60';
-  if (n.includes('cake') || n.includes('pastry')) return 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=300&auto=format&fit=crop&q=60';
   return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&auto=format&fit=crop&q=60';
+}
+
+// Standard FSSAI Veg & Non-Veg Icon Component
+function VegNonVegIcon({ isVeg }: { isVeg: boolean }) {
+  return (
+    <div className={`w-4 h-4 border-2 flex items-center justify-center shrink-0 rounded-[3px] p-[1px] ${
+      isVeg ? 'border-emerald-600' : 'border-red-600'
+    }`}>
+      <div className={`w-2 h-2 rounded-full ${
+        isVeg ? 'bg-emerald-600' : 'bg-red-600'
+      }`} />
+    </div>
+  );
 }
 
 function MenuContent({ cafeSlug }: { cafeSlug: string }) {
@@ -133,7 +157,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const [showAssistanceModal, setShowAssistanceModal] = useState(false);
   const [assistanceSent, setAssistanceSent] = useState(false);
   const [showMyOrdersModal, setShowMyOrdersModal] = useState(false);
-  const [customerOrderIds, setCustomerOrderIds] = useState<string[]>([]);
+  const [sessionOrderIds, setSessionOrderIds] = useState<string[]>([]);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -169,13 +193,19 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
         if (menuData) setMenuItems(menuData);
 
-        const saved = localStorage.getItem(`quickserve_orders_${cafeData.id}`);
-        if (saved) setCustomerOrderIds(JSON.parse(saved));
+        // FIX: Session-based order tracking so new sessions/scans don't show old orders
+        const sessionKey = `qs_session_orders_${cafeData.id}_t${tableNo}`;
+        const savedSession = sessionStorage.getItem(sessionKey);
+        if (savedSession) {
+          setSessionOrderIds(JSON.parse(savedSession));
+        } else {
+          setSessionOrderIds([]);
+        }
 
         fetchOrders(cafeData.id);
 
         const channel = supabase
-          .channel(`customer_orders_${cafeData.id}`)
+          .channel(`customer_orders_${cafeData.id}_t${tableNo}`)
           .on(
             'postgres_changes',
             {
@@ -202,13 +232,14 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
     }
 
     initData();
-  }, [cafeSlug]);
+  }, [cafeSlug, tableNo]);
 
   const fetchOrders = async (cafeId: string) => {
     const { data } = await supabase
       .from('orders')
       .select('*, order_items(*, menu_items(name))')
       .eq('cafe_id', cafeId)
+      .eq('table_no', tableNo)
       .order('created_at', { ascending: false });
     if (data) setOrders(data as unknown as Order[]);
   };
@@ -289,9 +320,9 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
         order_items: orderItems.map((i) => ({ ...i, id: i.menu_item_id, menu_items: { name: i.name } })),
       };
 
-      const updatedIds = [orderData.id, ...customerOrderIds];
-      setCustomerOrderIds(updatedIds);
-      localStorage.setItem(`quickserve_orders_${cafe.id}`, JSON.stringify(updatedIds));
+      const updatedIds = [orderData.id, ...sessionOrderIds];
+      setSessionOrderIds(updatedIds);
+      sessionStorage.setItem(`qs_session_orders_${cafe.id}_t${tableNo}`, JSON.stringify(updatedIds));
 
       confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
       setShowCheckoutModal(false);
@@ -323,10 +354,13 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
     }, 1800);
   };
 
+  // Dynamic Horizontal Categories
   const categories = useMemo(() => {
     const cats = new Set<string>();
     menuItems.forEach((item) => {
-      cats.add(item.category || 'General');
+      if (item.category && item.category.trim() !== '') {
+        cats.add(item.category.trim());
+      }
     });
     return ['All', ...Array.from(cats)];
   }, [menuItems]);
@@ -341,7 +375,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
       })
       .filter((i) => {
         if (selectedCategory === 'All') return true;
-        return (i.category || 'General') === selectedCategory;
+        return (i.category || 'Main Menu') === selectedCategory;
       });
   }, [menuItems, searchQuery, filterType, selectedCategory]);
 
@@ -363,7 +397,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
     setExpandedDescriptions((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const myOrders = orders.filter((o) => customerOrderIds.includes(o.id));
+  const myOrders = orders.filter((o) => sessionOrderIds.includes(o.id));
   const activeMyOrder = myOrders.find((o) => o.status === 'pending' || o.status === 'preparing');
 
   const theme = {
@@ -430,13 +464,21 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
       className="min-h-screen pb-36 transition-colors duration-200"
       style={{ backgroundColor: isDarkMode ? '#020617' : '#FEEEEC', ...theme.fontBody }}
     >
-      {/* HEADER */}
+      {/* HEADER WITH CAFE LOGO */}
       <header className={`sticky top-0 z-30 border-b backdrop-blur-md p-3.5 ${theme.header}`}>
         <div className="max-w-md mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500 font-black text-sm">
-              {cafe?.name?.slice(0, 2).toUpperCase() || 'QS'}
-            </div>
+          <div className="flex items-center gap-2.5">
+            {cafe?.logo_url ? (
+              <img
+                src={cafe.logo_url}
+                alt={cafe.name}
+                className="w-10 h-10 rounded-2xl object-cover border border-orange-500/30 shadow-sm"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500 font-black text-sm">
+                {cafe?.name?.slice(0, 2).toUpperCase() || 'QS'}
+              </div>
+            )}
             <div>
               <h1 className="text-base font-extrabold flex items-center gap-1" style={theme.fontHeader}>
                 <span>{cafe?.name || 'QuickServe'}</span>
@@ -511,60 +553,61 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           </div>
         )}
 
-        {/* SEARCH & HORIZONTAL CATEGORY SCROLL BAR */}
+        {/* SEARCH & HORIZONTAL SCROLLABLE CATEGORIES WITH ICONS */}
         <div className={`border p-3.5 rounded-2xl space-y-3 ${theme.panel}`}>
           <div className="relative">
             <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${theme.subText}`} />
             <input
               type="text"
-              placeholder="Search item..."
+              placeholder="Search dishes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`w-full pl-9 pr-3 py-2 border rounded-xl text-xs focus:outline-none focus:border-orange-500 transition ${theme.input}`}
             />
           </div>
 
-          {/* HORIZONTAL CATEGORY PILLS BAR */}
+          {/* DYNAMIC ICON-BASED HORIZONTAL SCROLL TABS */}
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 transition-all duration-300 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 flex items-center gap-1.5 transition-all duration-300 ${
                   selectedCategory === cat
                     ? 'bg-orange-500 text-white shadow-md scale-105'
                     : `bg-orange-500/10 text-orange-600 hover:bg-orange-500/20`
                 }`}
               >
-                {cat}
+                <span>{cat === 'All' ? '✨' : getCategoryIcon(cat)}</span>
+                <span>{cat}</span>
               </button>
             ))}
           </div>
 
-          {/* VEG / NON-VEG TOGGLE BUTTONS */}
+          {/* VEG / NON-VEG STANDARD FSSAI TOGGLES */}
           <div className="flex gap-2 pt-1 border-t border-orange-200/30">
             <button
               onClick={() => setFilterType('all')}
-              className={`px-3 py-1 rounded-lg text-[11px] font-bold transition ${filterType === 'all' ? 'bg-slate-900 text-white' : 'text-slate-500'}`}
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition ${filterType === 'all' ? 'bg-slate-900 text-white shadow' : 'text-slate-500'}`}
             >
               All ({menuItems.length})
             </button>
             <button
               onClick={() => setFilterType('veg')}
-              className={`px-3 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition ${filterType === 'veg' ? 'bg-emerald-600 text-white' : 'text-emerald-600'}`}
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition border ${filterType === 'veg' ? 'bg-emerald-600 text-white border-emerald-600 shadow' : 'border-emerald-600/30 text-emerald-600'}`}
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-500" /> Veg
+              <VegNonVegIcon isVeg={true} /> Pure Veg
             </button>
             <button
               onClick={() => setFilterType('non-veg')}
-              className={`px-3 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 transition ${filterType === 'non-veg' ? 'bg-red-600 text-white' : 'text-red-600'}`}
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition border ${filterType === 'non-veg' ? 'bg-red-600 text-white border-red-600 shadow' : 'border-red-600/30 text-red-600'}`}
             >
-              <span className="w-2 h-2 rounded-full bg-red-500" /> Non-Veg
+              <VegNonVegIcon isVeg={false} /> Non-Veg
             </button>
           </div>
         </div>
 
-        {/* ACCORDION CATEGORIZED DISHES LIST */}
+        {/* ACCORDION CATEGORIZED DISHES */}
         <div className="space-y-4">
           {Object.keys(groupedItems).length === 0 ? (
             <div className={`text-center py-12 text-xs ${theme.subText}`}>No dishes found.</div>
@@ -578,7 +621,8 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                     className="w-full flex justify-between items-center py-2 px-1 border-b border-orange-200/40 text-left transition"
                   >
                     <h2 className="text-sm font-extrabold text-orange-500 flex items-center gap-2" style={theme.fontHeader}>
-                      <Utensils className="w-4 h-4" /> {catName} ({items.length})
+                      <span>{getCategoryIcon(catName)}</span>
+                      <span>{catName} ({items.length})</span>
                     </h2>
                     {isCollapsed ? <ChevronDown className="w-4 h-4 text-orange-500" /> : <ChevronUp className="w-4 h-4 text-orange-500" />}
                   </button>
@@ -593,8 +637,8 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                         return (
                           <div key={item.id} className={`border rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all duration-300 hover:shadow-lg ${theme.card}`}>
                             <div className="flex-1 pr-1">
-                              <div className="flex items-center gap-1.5 mb-1">
-                                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${item.is_veg ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                              <div className="flex items-center gap-2 mb-1">
+                                <VegNonVegIcon isVeg={item.is_veg} />
                                 <h3 className="font-extrabold text-sm" style={theme.fontHeader}>{item.name}</h3>
                               </div>
 
@@ -642,10 +686,6 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                                   >
                                     + ADD
                                   </button>
-                                )}
-
-                                {item.is_customisable && (
-                                  <span className="text-[9px] font-bold text-slate-500 mt-1">Customisable</span>
                                 )}
                               </div>
                             </div>

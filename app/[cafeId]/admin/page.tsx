@@ -46,6 +46,7 @@ interface MenuItem {
   price: number;
   description: string | null;
   image_url: string | null;
+  category?: string;
   is_veg: boolean;
   is_available: boolean;
 }
@@ -54,6 +55,7 @@ interface Cafe {
   id: string;
   name: string;
   slug: string;
+  logo_url?: string;
   is_active?: boolean;
   admin_pin?: string;
   kitchen_pin?: string;
@@ -121,6 +123,7 @@ export default function MultiTenantAdminDashboard() {
   // Dish Form State
   const [dishName, setDishName] = useState('');
   const [dishPrice, setDishPrice] = useState('');
+  const [dishCategory, setDishCategory] = useState('');
   const [dishDesc, setDishDesc] = useState('');
   const [dishImg, setDishImg] = useState('');
   const [isVeg, setIsVeg] = useState(true);
@@ -339,6 +342,7 @@ export default function MultiTenantAdminDashboard() {
         cafe_id: cafe.id,
         name: dishName,
         price: parseFloat(dishPrice),
+        category: dishCategory.trim() || 'Main Menu',
         description: dishDesc || null,
         image_url: dishImg || null,
         is_veg: isVeg,
@@ -349,6 +353,7 @@ export default function MultiTenantAdminDashboard() {
       alert('New dish added successfully!');
       setDishName('');
       setDishPrice('');
+      setDishCategory('');
       setDishDesc('');
       setDishImg('');
       loadData();
@@ -383,6 +388,7 @@ export default function MultiTenantAdminDashboard() {
         .update({
           name: editingItem.name,
           price: editingItem.price,
+          category: editingItem.category || 'Main Menu',
           description: editingItem.description,
           image_url: editingItem.image_url,
           is_veg: editingItem.is_veg,
@@ -548,9 +554,14 @@ export default function MultiTenantAdminDashboard() {
   return (
     <div className={`min-h-screen font-sans pb-12 transition-colors duration-300 ${theme.bg}`}>
       <header className={`border-b px-6 py-4 flex flex-wrap items-center justify-between gap-4 transition-all duration-300 ${theme.header}`}>
-        <div>
-          <h1 className="text-xl font-extrabold text-orange-500">{cafe.name}</h1>
-          <p className={`text-xs ${theme.subText}`}>Master Owner Dashboard & Live KDS</p>
+        <div className="flex items-center gap-3">
+          {cafe.logo_url && (
+            <img src={cafe.logo_url} alt={cafe.name} className="w-10 h-10 rounded-xl object-cover border border-orange-500/30" />
+          )}
+          <div>
+            <h1 className="text-xl font-extrabold text-orange-500">{cafe.name}</h1>
+            <p className={`text-xs ${theme.subText}`}>Master Owner Dashboard & Live KDS</p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -562,7 +573,7 @@ export default function MultiTenantAdminDashboard() {
                 : 'bg-white text-orange-600 border-[#FAD7D2] shadow-sm'
             }`}
           >
-            {isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+            {isDarkMode ? '☀️️ Light Mode' : '🌙 Dark Mode'}
           </button>
 
           <button
@@ -768,7 +779,7 @@ export default function MultiTenantAdminDashboard() {
                     </div>
                   </div>
 
-                  {/* ADD NEW DISH FORM */}
+                  {/* ADD NEW DISH FORM WITH CATEGORY */}
                   <div className={`border rounded-2xl p-5 transition-all duration-300 ${theme.card}`}>
                     <h3 className="text-base font-bold mb-4">+ Add New Menu Dish</h3>
                     <form onSubmit={handleAddDish} className="space-y-3">
@@ -786,6 +797,14 @@ export default function MultiTenantAdminDashboard() {
                         required
                         value={dishPrice}
                         onChange={(e) => setDishPrice(e.target.value)}
+                        className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Category (e.g. Hot Brews, Fast Food) *"
+                        required
+                        value={dishCategory}
+                        onChange={(e) => setDishCategory(e.target.value)}
                         className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
                       />
                       <input
@@ -825,7 +844,7 @@ export default function MultiTenantAdminDashboard() {
               </div>
             )}
 
-            {/* DEDICATED MENU MANAGER TAB WITH DISH IMAGES */}
+            {/* DEDICATED MENU MANAGER TAB WITH CATEGORY & IMAGES */}
             {activeTab === 'menu' && (
               <div className="space-y-6 transition-all duration-300">
                 <div className="flex justify-between items-center flex-wrap gap-4">
@@ -860,6 +879,10 @@ export default function MultiTenantAdminDashboard() {
                                 <span className="text-sm font-black text-orange-500 shrink-0">₹{item.price}</span>
                               </div>
 
+                              <span className="inline-block mt-1 text-[10px] font-bold bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded-md">
+                                {item.category || 'Main Menu'}
+                              </span>
+
                               {item.description && (
                                 <p className={`text-xs line-clamp-2 mt-1 ${theme.subText}`}>{item.description}</p>
                               )}
@@ -882,7 +905,7 @@ export default function MultiTenantAdminDashboard() {
                               onClick={() => setEditingItem(item)}
                               className={`px-3 py-2 border rounded-xl text-xs font-bold transition-all duration-300 hover:scale-105 ${theme.innerCard}`}
                             >
-                              ✏️ Edit
+                              ✏️️ Edit
                             </button>
 
                             <button
@@ -1138,7 +1161,7 @@ export default function MultiTenantAdminDashboard() {
         )}
       </main>
 
-      {/* EDIT DISH MODAL */}
+      {/* EDIT DISH MODAL WITH CATEGORY */}
       {editingItem && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all duration-300 animate-fadeIn">
           <div className={`border w-full max-w-md rounded-2xl p-6 space-y-4 shadow-2xl transition-all duration-300 transform scale-100 ${theme.card}`}>
@@ -1166,6 +1189,17 @@ export default function MultiTenantAdminDashboard() {
                   required
                   value={editingItem.price}
                   onChange={(e) => setEditingItem({ ...editingItem, price: parseFloat(e.target.value) || 0 })}
+                  className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
+                />
+              </div>
+
+              <div>
+                <label className={`text-[11px] block mb-1 ${theme.subText}`}>Category</label>
+                <input
+                  type="text"
+                  required
+                  value={editingItem.category || ''}
+                  onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
                   className={`w-full border rounded-xl p-2.5 text-xs transition-all focus:outline-none focus:border-orange-500 ${theme.input}`}
                 />
               </div>
