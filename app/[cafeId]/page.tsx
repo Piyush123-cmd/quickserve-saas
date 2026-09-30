@@ -86,11 +86,11 @@ interface Order {
 
 function getCategoryIcon(categoryName: string): string {
   const cat = categoryName.toLowerCase();
-  if (cat.includes('drink') || cat.includes('beverage') || cat.includes('brew')) return '🥤';
-  if (cat.includes('coffee') || cat.includes('tea') || cat.includes('chai')) return '☕';
+  if (cat.includes('drink') || cat.includes('beverage') || cat.includes('cold brew')) return '🥤';
+  if (cat.includes('coffee') || cat.includes('tea') || cat.includes('chai') || cat.includes('hot brew')) return '☕';
   if (cat.includes('fast food') || cat.includes('burger') || cat.includes('pizza')) return '🍔';
-  if (cat.includes('snack') || cat.includes('starter') || cat.includes('fry')) return '🍟';
-  if (cat.includes('dessert') || cat.includes('cake') || cat.includes('sweet')) return '🍰';
+  if (cat.includes('snack') || cat.includes('starter') || cat.includes('fry') || cat.includes('fries')) return '🍟';
+  if (cat.includes('dessert') || cat.includes('cake') || cat.includes('ice cream') || cat.includes('sweet')) return '🍰';
   if (cat.includes('salad') || cat.includes('healthy')) return '🥗';
   if (cat.includes('egg')) return '🍳';
   return '🍽️';
@@ -108,7 +108,6 @@ function getFallbackImage(name: string): string {
   return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=300&auto=format&fit=crop&q=60';
 }
 
-// Standard FSSAI Veg & Non-Veg Icon Component
 function VegNonVegIcon({ isVeg }: { isVeg: boolean }) {
   return (
     <div className={`w-4 h-4 border-2 flex items-center justify-center shrink-0 rounded-[3px] p-[1px] ${
@@ -194,7 +193,6 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
 
         if (menuData) setMenuItems(menuData);
 
-        // FIX: Session-based order tracking so new sessions/scans don't show old orders
         const sessionKey = `qs_session_orders_${cafeData.id}_t${tableNo}`;
         const savedSession = sessionStorage.getItem(sessionKey);
         if (savedSession) {
@@ -363,7 +361,11 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
         cats.add(item.category.trim());
       }
     });
-    return ['All', ...Array.from(cats)];
+    const extractedList = Array.from(cats);
+    if (extractedList.length === 0) {
+      return ['All', 'Hot Brews', 'Cold Beverages', 'Fast Food', 'Snacks', 'Desserts'];
+    }
+    return ['All', ...extractedList];
   }, [menuItems]);
 
   const filteredItems = useMemo(() => {
@@ -554,7 +556,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           </div>
         )}
 
-        {/* SEARCH & PETPOOJA STYLE OUTLINE CATEGORIES WITH TOP-RIGHT TICK BADGE */}
+        {/* SEARCH & PETPOOJA COMPACT HORIZONTAL CARDS WITH CORNER TICK BADGE */}
         <div className={`border p-3.5 rounded-2xl space-y-3 ${theme.panel}`}>
           <div className="relative">
             <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${theme.subText}`} />
@@ -567,17 +569,17 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             />
           </div>
 
-          {/* PETPOOJA STYLE HORIZONTAL SCROLLABLE CARDS WITH OUTLINE & TOP-RIGHT TICK BADGE */}
-          <div className="flex gap-2.5 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth">
+          {/* COMPACT COMPOSITE CATEGORY PILLS (SLICK PETPOOJA STYLE) */}
+          <div className="flex gap-2 overflow-x-auto pb-1 pt-1 no-scrollbar scroll-smooth">
             {categories.map((cat) => {
               const isSelected = selectedCategory === cat;
               return (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`relative min-w-[90px] h-[75px] rounded-2xl p-2.5 flex flex-col items-center justify-center gap-1 transition-all duration-200 border-2 ${
+                  className={`relative shrink-0 px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all duration-200 border-2 font-bold text-xs ${
                     isSelected
-                      ? 'bg-white border-orange-500 shadow-md text-orange-600 scale-105'
+                      ? 'bg-white border-orange-500 text-orange-600 shadow-md scale-105'
                       : isDarkMode 
                       ? 'bg-slate-800/90 border-slate-700 text-slate-300 hover:border-orange-400' 
                       : 'bg-white/90 border-slate-200 text-slate-600 hover:border-orange-300'
@@ -585,15 +587,13 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
                 >
                   {/* TOP-RIGHT CORNER TICK BADGE */}
                   {isSelected && (
-                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md animate-in zoom-in-50">
-                      <Check className="w-3 h-3 stroke-[3]" />
+                    <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md">
+                      <Check className="w-2.5 h-2.5 stroke-[3]" />
                     </div>
                   )}
 
-                  <span className="text-xl">{cat === 'All' ? '✨' : getCategoryIcon(cat)}</span>
-                  <span className="text-[11px] font-bold tracking-tight text-center line-clamp-1">
-                    {cat}
-                  </span>
+                  <span className="text-sm">{cat === 'All' ? '✨' : getCategoryIcon(cat)}</span>
+                  <span className="whitespace-nowrap">{cat}</span>
                 </button>
               );
             })}
