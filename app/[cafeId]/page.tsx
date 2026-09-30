@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense, use, useMemo, useRef } from 'react';
+import { useEffect, useState, Suspense, use, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -30,8 +30,6 @@ import {
   Utensils,
   ChevronDown,
   ChevronUp,
-  Users,
-  Home,
   ShoppingBag
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -116,7 +114,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
-  const [activeTab, setActiveTab] = useState<'home' | 'menu' | 'orders' | 'pay'>('menu');
+  const [activeTab, setActiveTab] = useState<'menu' | 'orders' | 'assistance'>('menu');
 
   // Checkout Form States
   const [customerName, setCustomerName] = useState('');
@@ -138,7 +136,6 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
   const [customerOrderIds, setCustomerOrderIds] = useState<string[]>([]);
 
   useEffect(() => {
-    // Inject Google Fonts dynamically
     const link = document.createElement('link');
     link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap';
     link.rel = 'stylesheet';
@@ -326,7 +323,6 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
     }, 1800);
   };
 
-  // Categories extraction
   const categories = useMemo(() => {
     const cats = new Set<string>();
     menuItems.forEach((item) => {
@@ -528,7 +524,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
             />
           </div>
 
-          {/* HORIZONTAL CATEGORY PILLS BAR (PETPOOJA STYLE) */}
+          {/* HORIZONTAL CATEGORY PILLS BAR */}
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
             {categories.map((cat) => (
               <button
@@ -568,7 +564,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
           </div>
         </div>
 
-        {/* ACCORDION CATEGORIZED DISHES LIST WITH IMAGES & CUSTOMISATION */}
+        {/* ACCORDION CATEGORIZED DISHES LIST */}
         <div className="space-y-4">
           {Object.keys(groupedItems).length === 0 ? (
             <div className={`text-center py-12 text-xs ${theme.subText}`}>No dishes found.</div>
@@ -577,7 +573,6 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
               const isCollapsed = collapsedCategories[catName];
               return (
                 <div key={catName} className="space-y-3">
-                  {/* ACCORDION HEADER */}
                   <button
                     onClick={() => toggleCategoryAccordion(catName)}
                     className="w-full flex justify-between items-center py-2 px-1 border-b border-orange-200/40 text-left transition"
@@ -682,7 +677,7 @@ function MenuContent({ cafeSlug }: { cafeSlug: string }) {
         </div>
       )}
 
-      {/* PERSISTENT BOTTOM NAVIGATION BAR (PETPOOJA STYLE) */}
+      {/* PERSISTENT BOTTOM NAVIGATION BAR */}
       <nav className={`fixed bottom-0 left-0 right-0 border-t z-50 backdrop-blur-md px-6 py-2.5 ${theme.header}`}>
         <div className="max-w-md mx-auto flex justify-between items-center text-center">
           <button
